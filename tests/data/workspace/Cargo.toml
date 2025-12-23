@@ -1,7 +1,3 @@
 [workspace]
 
-members = [
-  "with_unit_tests",
-  "with_integration_tests",
-  "with_other_folder_name",
-]
+members = ["with_unit_tests", "with_integration_tests", "with_other_folder_name"]
