@@ -22,10 +22,14 @@ local opts = require("lazy.minit").busted.setup({
         "nvim-lua/plenary.nvim",
         {
             "nvim-treesitter/nvim-treesitter",
-            branch = "master",
-            build = ":TSUpdate",
             main = "nvim-treesitter.configs",
-            opts = { ensure_installed = { "rust" } },
+            config = function(_, opts)
+                require("nvim-treesitter").setup(opts)
+                local installed = require("nvim-treesitter.config").get_installed()
+                if not vim.tbl_contains(installed, "rust") then
+                    require("nvim-treesitter").install({ "rust" }):wait()
+                end
+            end,
         },
         "nvim-neotest/nvim-nio",
         "nvim-neotest/neotest",
