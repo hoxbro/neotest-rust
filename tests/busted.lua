@@ -22,7 +22,6 @@ local opts = require("lazy.minit").busted.setup({
         "nvim-lua/plenary.nvim",
         {
             "nvim-treesitter/nvim-treesitter",
-            branch = "master",
             build = ":TSUpdate",
             main = "nvim-treesitter.configs",
             opts = { ensure_installed = { "rust" } },
