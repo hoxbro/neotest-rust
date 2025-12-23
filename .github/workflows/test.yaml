@@ -24,7 +24,6 @@ jobs:
       fail-fast: false
       matrix:
         os: ["ubuntu-latest", "macos-latest"]
-
     steps:
       - uses: actions/checkout@v6
         with:
@@ -47,3 +46,13 @@ jobs:
         with:
           path: .pixi/lazy
           key: lazy|${{ matrix.os }}|${{ hashFiles('tests/lazy-lock.json') }}
+
+  result:
+    name: result:test
+    needs: [unit-test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: check for failures
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: echo job failed && exit 1
