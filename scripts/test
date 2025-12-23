@@ -1,6 +1,0 @@
-#!/bin/bash
-set -eu
-
-unset CARGO_TARGET_DIR
-
-nvim --noplugin -l tests/busted.lua --output TAP tests/

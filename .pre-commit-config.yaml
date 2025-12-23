@@ -1,39 +1,39 @@
----
-
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c # frozen: v6.0.0
     hooks:
-      # Filesystem
       - id: check-case-conflict
       - id: check-symlinks
-      # Whitespace
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: mixed-line-ending
-      # Syntax
       - id: check-merge-conflict
       - id: check-executables-have-shebangs
       - id: check-yaml
       - id: check-json
       - id: check-toml
-  - repo: https://github.com/JohnnyMorganz/StyLua
-    rev: v2.1.0
+  - repo: https://github.com/johnnymorganz/stylua
+    rev: 3701d2cb65198ec748d3a593628625be9f91fe27 # frozen: v2.3.1
     hooks:
       - id: stylua-github
-  - repo: local
+  - repo: https://github.com/hoxbro/prettier-pre-commit
+    rev: bae77de89db2ee6b2052f9647b14246e9ee19cd1 # frozen: v3.7.4
     hooks:
-      - id: shfmt
-        name: shfmt
-        language: golang
-        additional_dependencies: [mvdan.cc/sh/v3/cmd/shfmt@v3.5.1]
-        entry: shfmt
+      - id: prettier
+        types_or:
+          - markdown
+          - yaml
+          - css
+  - repo: https://github.com/hoxbro/taplo-pre-commit
+    rev: 605f960c3c571f814f535622a688bcde63ee87f6 # frozen: v0.9.3
+    hooks:
+      - id: taplo
         args:
-          # indent
-          - -i=2
-          # simplify the code
-          - -s
-          # write result to file instead of stdout
-          - -w
-        types:
-          - shell
+          [
+            --option,
+            align_comments=false,
+            --option,
+            column_width=100,
+            --option,
+            "indent_string=    ",
+          ]
