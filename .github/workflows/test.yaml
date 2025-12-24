@@ -35,13 +35,15 @@ jobs:
       - uses: prefix-dev/setup-pixi@v0.9.3
         with:
           environments: ${{ matrix.environment }}
-      - name: Install luarocks tools (Windows)
+      - name: Setup MSVC (Windows)
         if: matrix.os == 'windows-latest'
-        shell: cmd
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86
+      - name: Install luarocks and luafilesystem (Windows)
+        if: matrix.os == 'windows-latest'
         run: |
           choco install luarocks -y
-          luarocks config variables.CC gcc
-          luarocks config variables.LD gcc
           luarocks install luafilesystem
       - id: cache
         uses: actions/cache/restore@v5
