@@ -40,7 +40,7 @@ luac.out
 *.hex
 
 # Vim plugins
-deps/
+.lazy/
 
 # Rust
 target/

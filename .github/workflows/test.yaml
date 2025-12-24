@@ -18,34 +18,37 @@ jobs:
       - uses: hoxbro/actions/pre-commit@main
 
   unit-test:
-    name: unit:${{ matrix.os }}
+    name: unit:${{ matrix.os }}:${{ matrix.environment }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: ["ubuntu-latest", "macos-latest"]
+        environment: ["nvim-010", "nvim-011"]
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: "1"
       - uses: prefix-dev/setup-pixi@v0.9.3
+        with:
+          environments: ${{ matrix.environment }}
       - id: cache
         uses: actions/cache/restore@v5
         with:
-          path: .pixi/lazy
-          key: lazy|${{ matrix.os }}|${{ hashFiles('tests/lazy-lock.json') }}
+          path: .lazy
+          key: lazy|${{ matrix.os }}|${{ matrix.environment }}|${{ hashFiles('tests/lazy-lock*.json') }}
       - name: Install
         if: steps.cache.outputs.cache-hit != 'true'
         shell: bash -e {0}
-        run: pixi run install
+        run: pixi run -e ${{ matrix.environment }} install
       - name: Test
         shell: bash -e {0}
-        run: pixi run test --output=TAP
+        run: pixi run -e ${{ matrix.environment }} test --output=TAP
       - if: steps.cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         with:
-          path: .pixi/lazy
-          key: lazy|${{ matrix.os }}|${{ hashFiles('tests/lazy-lock.json') }}
+          path: .lazy
+          key: lazy|${{ matrix.os }}|${{ matrix.environment }}|${{ hashFiles('tests/lazy-lock*.json') }}
 
   result:
     name: result:test
