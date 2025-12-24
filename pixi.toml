@@ -14,6 +14,15 @@ test = 'nvim -l tests/busted.lua tests/'
 [dependencies]
 cargo-nextest = "*"
 luarocks = "*"
-nvim = "*"
 rust = "*"
 tree-sitter-cli = "*"
+
+[environments]
+nvim-010 = ["nvim-010"]
+nvim-011 = ["nvim-011"]
+
+[feature.nvim-010.dependencies]
+nvim = "0.10.*"
+
+[feature.nvim-011.dependencies]
+nvim = "0.11.*"
