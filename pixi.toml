@@ -3,9 +3,6 @@ name = "neotest-rust"
 channels = ["conda-forge"]
 platforms = ["linux-64", "osx-arm64"]
 
-[activation.env]
-LAZY_STDPATH = ".pixi/lazy"
-
 [tasks]
 install = 'nvim -l tests/busted.lua --version'
 update = 'nvim -l tests/busted.lua --update'
@@ -24,5 +21,11 @@ nvim-011 = ["nvim-011"]
 [feature.nvim-010.dependencies]
 nvim = "0.10.*"
 
+[feature.nvim-010.activation.env]
+LAZY_STDPATH = ".lazy/nvim-010"
+
 [feature.nvim-011.dependencies]
 nvim = "0.11.*"
+
+[feature.nvim-011.activation.env]
+LAZY_STDPATH = ".lazy/nvim-011"

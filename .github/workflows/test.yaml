@@ -35,7 +35,7 @@ jobs:
       - id: cache
         uses: actions/cache/restore@v5
         with:
-          path: .pixi/lazy
+          path: .lazy
           key: lazy|${{ matrix.os }}|${{ matrix.environment }}|${{ hashFiles('tests/lazy-lock*.json') }}
       - name: Install
         if: steps.cache.outputs.cache-hit != 'true'
@@ -47,7 +47,7 @@ jobs:
       - if: steps.cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         with:
-          path: .pixi/lazy
+          path: .lazy
           key: lazy|${{ matrix.os }}|${{ matrix.environment }}|${{ hashFiles('tests/lazy-lock*.json') }}
 
   result:
