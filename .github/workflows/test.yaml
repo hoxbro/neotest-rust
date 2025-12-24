@@ -31,12 +31,12 @@ jobs:
           fetch-depth: "1"
       - uses: prefix-dev/setup-pixi@v0.9.3
         with:
-          environment: ${{ matrix.environment }}
+          environments: ${{ matrix.environment }}
       - id: cache
         uses: actions/cache/restore@v5
         with:
           path: .pixi/lazy
-          key: lazy|${{ matrix.os }}|${{ hashFiles('tests/lazy-lock.json') }}
+          key: lazy|${{ matrix.os }}|${{ matrix.environment }}|${{ hashFiles('tests/lazy-lock*.json') }}
       - name: Install
         if: steps.cache.outputs.cache-hit != 'true'
         shell: bash -e {0}
@@ -48,7 +48,7 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: .pixi/lazy
-          key: lazy|${{ matrix.os }}|${{ hashFiles('tests/lazy-lock.json') }}
+          key: lazy|${{ matrix.os }}|${{ matrix.environment }}|${{ hashFiles('tests/lazy-lock*.json') }}
 
   result:
     name: result:test
