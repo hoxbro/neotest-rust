@@ -1,7 +1,7 @@
 [workspace]
 name = "neotest-rust"
 channels = ["conda-forge"]
-platforms = ["linux-64", "osx-arm64", "win-64"]
+platforms = ["linux-64", "osx-arm64"]
 
 [tasks]
 install = 'nvim -l tests/busted.lua --version'
@@ -10,18 +10,13 @@ test = 'nvim -l tests/busted.lua tests/'
 
 [dependencies]
 cargo-nextest = "*"
+luarocks = "*"
 rust = "*"
 tree-sitter-cli = "*"
-
-[target.unix.dependencies]
-luarocks = "*"
 
 [environments]
 nvim-010 = ["nvim-010"]
 nvim-011 = ["nvim-011"]
-
-[feature.nvim-010]
-platforms = ["linux-64", "osx-arm64"]
 
 [feature.nvim-010.dependencies]
 nvim = "0.10.*"

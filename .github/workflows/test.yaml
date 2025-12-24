@@ -25,9 +25,6 @@ jobs:
       matrix:
         os: ["ubuntu-latest", "macos-latest"]
         environment: ["nvim-010", "nvim-011"]
-        include:
-          - os: windows-latest
-            environment: nvim-011
     steps:
       - uses: actions/checkout@v6
         with:
@@ -35,16 +32,6 @@ jobs:
       - uses: prefix-dev/setup-pixi@v0.9.3
         with:
           environments: ${{ matrix.environment }}
-      - name: Setup MSVC (Windows)
-        if: matrix.os == 'windows-latest'
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x86
-      - name: Install luarocks and luafilesystem (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          choco install luarocks -y
-          luarocks install luafilesystem
       - id: cache
         uses: actions/cache/restore@v5
         with:
