@@ -17,6 +17,7 @@ tree-sitter-cli = "*"
 [environments]
 nvim-010 = ["nvim-010"]
 nvim-011 = ["nvim-011"]
+nvim-012 = ["nvim-012"]
 
 [feature.nvim-010.dependencies]
 nvim = "0.10.*"
@@ -29,3 +30,9 @@ nvim = "0.11.*"
 
 [feature.nvim-011.activation.env]
 LAZY_STDPATH = ".lazy/nvim-011"
+
+[feature.nvim-012.dependencies]
+nvim = "0.12.*"
+
+[feature.nvim-012.activation.env]
+LAZY_STDPATH = ".lazy/nvim-012"
