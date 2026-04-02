@@ -24,7 +24,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ["ubuntu-latest", "macos-latest"]
-        environment: ["nvim-010", "nvim-011"]
+        environment: ["nvim-010", "nvim-011", "nvim-012"]
     steps:
       - uses: actions/checkout@v6
         with:
