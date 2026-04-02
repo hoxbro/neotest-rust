@@ -7,6 +7,11 @@ platforms = ["linux-64", "osx-arm64"]
 install = 'nvim -l tests/busted.lua --version'
 update = 'nvim -l tests/busted.lua --update'
 test = 'nvim -l tests/busted.lua tests/'
+update-all = { depends-on = [
+    { task = "update", environment = "nvim-010" },
+    { task = "update", environment = "nvim-011" },
+    { task = "update", environment = "nvim-012" },
+] }
 
 [dependencies]
 cargo-nextest = "*"
