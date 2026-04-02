@@ -13,11 +13,11 @@ repos:
       - id: check-json
       - id: check-toml
   - repo: https://github.com/johnnymorganz/stylua
-    rev: 3701d2cb65198ec748d3a593628625be9f91fe27 # frozen: v2.3.1
+    rev: 28e1d7b5db3f2c6c53580963c79c5e6a5b374ca0 # frozen: v2.4.0
     hooks:
       - id: stylua-github
   - repo: https://github.com/hoxbro/prettier-pre-commit
-    rev: bae77de89db2ee6b2052f9647b14246e9ee19cd1 # frozen: v3.7.4
+    rev: 86ff8f664c20f581d71c90a6ea0073c1bcafe1e5 # frozen: v3.8.1
     hooks:
       - id: prettier
         types_or:
