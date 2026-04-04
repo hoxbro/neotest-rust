@@ -1,29 +1,28 @@
 local async = require("nio.tests")
 local strings = require("plenary.strings")
 local dap = require("neotest-rust.dap")
-local Path = require("plenary.path")
 
-local function data_path(...)
-    return Path:new(vim.uv.cwd(), "tests", "data", ...).filename
-end
+-- Windows has .exe
+local reduce_count = vim.fn.has("win32") == 1 and 20 or 16
 
 describe("get_test_binary", function()
     -- Binaries are created for src/lib.rs, src/main.rs, tests/test_it.rs, and
     -- tests/testsuite/main.rs. We can only test that they match expected substrings
     -- and that the other modules resolve to their source binaries
     describe("for a simple-package", function()
-        local root = data_path("simple-package")
+        local cwd = vim.uv.cwd()
+        local root = cwd .. "/tests/data/simple-package"
 
-        local lib_actual = dap.get_test_binary(root, data_path("simple-package", "src", "lib.rs"))
-        local main_actual = dap.get_test_binary(root, data_path("simple-package", "src", "main.rs"))
-        local alt_bin_actual = dap.get_test_binary(root, data_path("simple-package", "src", "bin", "alt-bin.rs"))
-        local test_it_actual = dap.get_test_binary(root, data_path("simple-package", "tests", "test_it.rs"))
-        local testsuite_actual = dap.get_test_binary(root, data_path("simple-package", "tests", "testsuite", "main.rs"))
+        local lib_actual = dap.get_test_binary(root, root .. "/src/lib.rs")
+        local main_actual = dap.get_test_binary(root, root .. "/src/main.rs")
+        local alt_bin_actual = dap.get_test_binary(root, root .. "/src/bin/alt-bin.rs")
+        local test_it_actual = dap.get_test_binary(root, root .. "/tests/test_it.rs")
+        local testsuite_actual = dap.get_test_binary(root, root .. "/tests/testsuite/main.rs")
 
         async.it("returns the test binary for src/lib.rs", function()
             assert(lib_actual)
             local expected = root .. "/target/debug/deps/simple_package-"
-            local actual = strings.truncate(lib_actual, lib_actual:len() - 16, "-")
+            local actual = strings.truncate(lib_actual, lib_actual:len() - reduce_count, "-")
 
             assert.equal(expected, actual)
         end)
@@ -31,7 +30,7 @@ describe("get_test_binary", function()
         async.it("returns the test binary for src/main.rs", function()
             assert(main_actual)
             local expected = root .. "/target/debug/deps/simple_package-"
-            local actual = strings.truncate(main_actual, main_actual:len() - 16, "-")
+            local actual = strings.truncate(main_actual, main_actual:len() - reduce_count, "-")
 
             assert.equal(expected, actual)
         end)
@@ -39,7 +38,7 @@ describe("get_test_binary", function()
         async.it("returns the test binary for src/bin/alt-bin.rs", function()
             assert(alt_bin_actual)
             local expected = root .. "/target/debug/deps/alt_bin-"
-            local actual = strings.truncate(alt_bin_actual, alt_bin_actual:len() - 16, "-")
+            local actual = strings.truncate(alt_bin_actual, alt_bin_actual:len() - reduce_count, "-")
 
             assert.equal(expected, actual)
         end)
@@ -75,7 +74,7 @@ describe("get_test_binary", function()
         async.it("returns the test binary for tests/test_it.rs", function()
             assert(test_it_actual)
             local expected = root .. "/target/debug/deps/test_it-"
-            local actual = strings.truncate(test_it_actual, test_it_actual:len() - 16, "-")
+            local actual = strings.truncate(test_it_actual, test_it_actual:len() - reduce_count, "-")
 
             assert.equal(expected, actual)
         end)
@@ -97,14 +96,15 @@ describe("get_test_binary", function()
     end)
 
     describe("for a workspace", function()
-        local root = data_path("workspace")
+        local cwd = vim.uv.cwd()
+        local root = cwd .. "/tests/data/workspace"
 
         async.it("returns the test binary for with_unit_tests/src/main.rs", function()
             local with_unit_actual = dap.get_test_binary(root, root .. "/with_unit_tests/src/main.rs")
             assert(with_unit_actual)
 
             local expected = root .. "/target/debug/deps/with_unit_tests-"
-            local actual = strings.truncate(with_unit_actual, with_unit_actual:len() - 16, "-")
+            local actual = strings.truncate(with_unit_actual, with_unit_actual:len() - reduce_count, "-")
 
             assert.equal(expected, actual)
         end)
@@ -115,7 +115,8 @@ describe("get_test_binary", function()
             assert(with_integration_main_actual)
 
             local expected = root .. "/target/debug/deps/with_integration_tests-"
-            local actual = strings.truncate(with_integration_main_actual, with_integration_main_actual:len() - 16, "-")
+            local actual =
+                strings.truncate(with_integration_main_actual, with_integration_main_actual:len() - reduce_count, "-")
 
             assert.equal(expected, actual)
         end)
@@ -125,7 +126,8 @@ describe("get_test_binary", function()
             assert(with_integration_it_actual)
 
             local expected = root .. "/target/debug/deps/it-"
-            local actual = strings.truncate(with_integration_it_actual, with_integration_it_actual:len() - 16, "-")
+            local actual =
+                strings.truncate(with_integration_it_actual, with_integration_it_actual:len() - reduce_count, "-")
 
             assert.equal(expected, actual)
         end)
@@ -134,7 +136,8 @@ end)
 
 describe("translate_results", function()
     async.it("parses results with a single test suite in it", function()
-        local path = data_path("simple-package", "1")
+        local cwd = vim.uv.cwd()
+        local path = cwd .. "/tests/data/simple-package/1"
 
         local results = dap.translate_results(path)
 
@@ -146,7 +149,8 @@ describe("translate_results", function()
     end)
 
     async.it("translates raw results with multiple test suites in it", function()
-        local path = data_path("simple-package", "3")
+        local cwd = vim.uv.cwd()
+        local path = cwd .. "/tests/data/simple-package/3"
 
         local results = dap.translate_results(path)
 
