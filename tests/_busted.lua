@@ -20,7 +20,9 @@ local function get_trace(_, level, msg)
         info = debug.getinfo(level, "Sl")
     end
 
+    ---@diagnostic disable-next-line: inject-field
     info.traceback = debug.traceback("", level)
+    ---@diagnostic disable-next-line: inject-field
     info.message = msg
 
     return trimTrace(info)
@@ -191,8 +193,8 @@ it = mod.it
 pending = mod.pending
 before_each = mod.before_each
 after_each = mod.after_each
+---@diagnostic disable-next-line: lowercase-global
 clear = mod.clear
----@type Luassert
 assert = require("luassert")
 
 --- Count total tests in a file without running them, by temporarily
@@ -454,35 +456,27 @@ mod.run = function()
 
     -- Build summary line
     local parts = {}
+    local plain_parts = {}
     if total_fail > 0 then
         table.insert(parts, color_string("red", total_fail .. " failed"))
+        table.insert(plain_parts, total_fail .. " failed")
     end
     if total_errs > 0 then
         table.insert(parts, color_string("red", total_errs .. " errors"))
+        table.insert(plain_parts, total_errs .. " errors")
     end
     if total_pass > 0 then
         table.insert(parts, color_string("green", total_pass .. " passed"))
+        table.insert(plain_parts, total_pass .. " passed")
     end
     if total_skip > 0 then
         table.insert(parts, color_string("yellow", total_skip .. " skipped"))
+        table.insert(plain_parts, total_skip .. " skipped")
     end
 
-    local summary_text = table.concat(parts, ", ") .. string.format(" in %.2fs", elapsed)
-    -- For the centered line we need the plain text length
-    local summary_plain = ""
-    if total_fail > 0 then
-        summary_plain = summary_plain .. total_fail .. " failed, "
-    end
-    if total_errs > 0 then
-        summary_plain = summary_plain .. total_errs .. " errors, "
-    end
-    if total_pass > 0 then
-        summary_plain = summary_plain .. total_pass .. " passed, "
-    end
-    if total_skip > 0 then
-        summary_plain = summary_plain .. total_skip .. " skipped, "
-    end
-    summary_plain = summary_plain .. string.format("in %.2fs", elapsed)
+    local time_str = string.format("in %.2fs", elapsed)
+    local summary_text = table.concat(parts, ", ") .. " " .. time_str
+    local summary_plain = table.concat(plain_parts, ", ") .. " " .. time_str
 
     local has_failures = total_fail > 0 or total_errs > 0
     local fill_color = has_failures and "red" or "green"
