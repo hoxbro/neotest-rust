@@ -76,5 +76,5 @@ elseif _G.arg[1] == "--install" then
 else
     vim.env.LAZY_OFFLINE = "1"
     require("lazy.minit").setup(opts)
-    dofile("tests/test.lua").run()
+    dofile("tests/runner.lua").run()
 end

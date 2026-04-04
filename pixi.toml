@@ -4,9 +4,9 @@ channels = ["conda-forge"]
 platforms = ["linux-64", "osx-arm64", "win-64"]
 
 [tasks]
-install = 'nvim -l tests/run.lua --install'
-update = 'nvim -l tests/run.lua --update'
-test = 'nvim -l tests/run.lua tests/'
+install = 'nvim -l tests/init.lua --install'
+update = 'nvim -l tests/init.lua --update'
+test = 'nvim -l tests/init.lua tests/'
 update-all = { depends-on = [
     { task = "update", environment = "nvim-010" },
     { task = "update", environment = "nvim-011" },

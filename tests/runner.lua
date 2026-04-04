@@ -455,7 +455,7 @@ mod.run = function()
         else
             local stat = vim.uv.fs_stat(path)
             if stat and stat.type == "directory" then
-                vim.list_extend(files, vim.fn.globpath(path, "**/*_spec.lua", true, true))
+                vim.list_extend(files, vim.fn.globpath(path, "**/test_*.lua", true, true))
             elseif stat then
                 table.insert(files, path)
             end
