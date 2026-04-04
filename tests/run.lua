@@ -1,6 +1,9 @@
 local language = "rust"
 
-local lazypath = vim.env.LAZY_STDPATH
+local v = vim.version()
+local lazypath = string.format(".lazy/nvim-%d%02d", v.major, v.minor)
+vim.env.LAZY_STDPATH = lazypath
+
 if not vim.uv.fs_stat(lazypath) then
     vim.fn.system({
         "git",
@@ -15,8 +18,6 @@ end
 vim.opt.rtp:prepend(lazypath)
 
 local treesitter_spec
-local lockfile
-
 local config = function(_, opts)
     if vim.fn.has("nvim-0.11") == 1 then
         require("nvim-treesitter").setup(opts)
@@ -39,7 +40,6 @@ if vim.fn.has("nvim-0.12") == 1 then
         branch = "main",
         config = config,
     }
-    lockfile = "tests/lazy-lock.json"
 elseif vim.fn.has("nvim-0.11") == 1 then
     treesitter_spec = {
         "nvim-treesitter/nvim-treesitter",
@@ -47,14 +47,12 @@ elseif vim.fn.has("nvim-0.11") == 1 then
         commit = "90cd6580e720caedacb91fdd587b747a6e77d61f",
         config = config,
     }
-    lockfile = "tests/lazy-lock-11.json"
 else
     treesitter_spec = {
         "nvim-treesitter/nvim-treesitter",
         branch = "master",
         config = config,
     }
-    lockfile = "tests/lazy-lock-10.json"
 end
 
 local opts = {
@@ -65,14 +63,18 @@ local opts = {
         "nvim-neotest/neotest",
         { dir = vim.uv.cwd() },
     },
-    lockfile = lockfile,
+    lockfile = string.format("tests/lazy-lock-%02d.json", v.minor),
 }
 
 if _G.arg[1] == "--update" then
     table.remove(_G.arg, 1)
     require("lazy.minit").setup(opts)
+elseif _G.arg[1] == "--install" then
+    table.remove(_G.arg, 1)
+    vim.env.LAZY_OFFLINE = "1"
+    require("lazy.minit").setup(opts)
 else
     vim.env.LAZY_OFFLINE = "1"
     require("lazy.minit").setup(opts)
-    dofile("tests/_busted.lua").run()
+    dofile("tests/test.lua").run()
 end
