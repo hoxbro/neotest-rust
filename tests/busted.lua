@@ -1,7 +1,7 @@
 local language = "rust"
 
 local lazypath = vim.env.LAZY_STDPATH
-if not (vim.uv or vim.loop).fs_stat(lazypath) then
+if not vim.uv.fs_stat(lazypath) then
     vim.fn.system({
         "git",
         "clone",
@@ -72,24 +72,12 @@ if _G.arg[1] == "--update" then
     table.remove(_G.arg, 1)
     require("lazy.minit").setup(opts)
 else
-    local test_args = {}
-    local offline = false
-    for _, a in ipairs(_G.arg) do
-        if a == "--offline" then
-            offline = true
-        else
-            table.insert(test_args, a)
-        end
-    end
-
-    if not offline then
-        table.insert(_G.arg, "--offline")
-    end
+    vim.env.LAZY_OFFLINE = "1"
     require("lazy.minit").setup(opts)
 
     local busted = require("plenary.busted")
-    for _, path in ipairs(test_args) do
-        local stat = (vim.uv or vim.loop).fs_stat(path)
+    for _, path in ipairs(_G.arg) do
+        local stat = vim.uv.fs_stat(path)
         if stat and stat.type == "directory" then
             local files = vim.fn.globpath(path, "**/*_spec.lua", true, true)
             for _, file in ipairs(files) do
