@@ -74,17 +74,5 @@ if _G.arg[1] == "--update" then
 else
     vim.env.LAZY_OFFLINE = "1"
     require("lazy.minit").setup(opts)
-
-    local busted = require("plenary.busted")
-    for _, path in ipairs(_G.arg) do
-        local stat = vim.uv.fs_stat(path)
-        if stat and stat.type == "directory" then
-            local files = vim.fn.globpath(path, "**/*_spec.lua", true, true)
-            for _, file in ipairs(files) do
-                busted.run(file)
-            end
-        elseif stat then
-            busted.run(path)
-        end
-    end
+    dofile("tests/_busted.lua").run()
 end
