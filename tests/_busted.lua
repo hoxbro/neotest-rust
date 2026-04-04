@@ -78,7 +78,17 @@ local call_inner = function(desc, func)
     return ok, msg, desc_stack
 end
 
-local TERM_WIDTH = 80
+local TERM_WIDTH = (function()
+    local tty = vim.uv.new_tty(1, false)
+    if tty then
+        local w = tty:get_winsize()
+        tty:close()
+        if w and w > 0 then
+            return w
+        end
+    end
+    return 80
+end)()
 
 local color_table = {
     yellow = 33,
@@ -125,6 +135,9 @@ end
 -- Cumulative counters across all files (set in mod.run)
 local grand_total = 0
 local grand_done = 0
+local had_any_failure = false
+local verbose = false
+local current_file = ""
 
 mod.describe = function(desc, func)
     results.pass = results.pass or {}
@@ -160,6 +173,17 @@ mod.clear = function()
     vim.api.nvim_buf_set_lines(0, 0, -1, false, {})
 end
 
+local function verbose_line(desc_stack, status_str, status_color)
+    local pct = grand_total > 0 and math.floor(grand_done / grand_total * 100) or 100
+    local pct_color = had_any_failure and "red" or "green"
+    local suffix = color_string(pct_color, string.format("[%3d%%]", pct))
+    local name = current_file .. "::" .. table.concat(desc_stack, "::")
+    local label = color_string(status_color, status_str)
+    local plain_len = #name + 1 + #status_str + 1 + 6 -- 6 = "[xxx%]"
+    local padding = math.max(1, TERM_WIDTH - plain_len)
+    print(name .. " " .. label .. string.rep(" ", padding) .. suffix)
+end
+
 mod.it = function(desc, func)
     run_each(current_before_each)
     local ok, msg, desc_stack = call_inner(desc, func)
@@ -170,11 +194,18 @@ mod.it = function(desc, func)
 
     if not ok then
         test_result.msg = msg
+        had_any_failure = true
         table.insert(results.fail, test_result)
         table.insert(results._ordered, { kind = "fail", cumulative = grand_done })
+        if verbose then
+            verbose_line(desc_stack, "FAILED", "red")
+        end
     else
         table.insert(results.pass, test_result)
         table.insert(results._ordered, { kind = "pass", cumulative = grand_done })
+        if verbose then
+            verbose_line(desc_stack, "PASSED", "green")
+        end
     end
 end
 
@@ -184,6 +215,9 @@ mod.pending = function(desc, _)
     table.insert(results.skip, { descriptions = curr_stack })
     grand_done = grand_done + 1
     table.insert(results._ordered, { kind = "skip", cumulative = grand_done })
+    if verbose then
+        verbose_line(curr_stack, "SKIPPED", "yellow")
+    end
 end
 
 -- Set globals
@@ -273,7 +307,7 @@ local function print_file_line(file, file_results)
         end
     end
 
-    local suffix_color = file_had_failure and "red" or "green"
+    local suffix_color = had_any_failure and "red" or "green"
 
     --- Color a single marker character
     local function color_marker(m)
@@ -335,6 +369,7 @@ end
 
 local _single_run = function(file)
     file = file:gsub("\\", "/")
+    current_file = file
     results = {}
     results.pass = {}
     results.fail = {}
@@ -345,9 +380,12 @@ local _single_run = function(file)
     local loaded, msg = loadfile(file)
     if not loaded then
         grand_done = grand_done + 1
+        had_any_failure = true
         table.insert(results.errs, { descriptions = {}, msg = msg })
         table.insert(results._ordered, { kind = "error" })
-        print_file_line(file, results)
+        if not verbose then
+            print_file_line(file, results)
+        end
         return results
     end
 
@@ -363,7 +401,9 @@ local _single_run = function(file)
         results._ordered = {}
     end
 
-    print_file_line(file, results)
+    if not verbose then
+        print_file_line(file, results)
+    end
     return results
 end
 
@@ -372,11 +412,15 @@ end
 mod.run = function()
     local files = {}
     for _, path in ipairs(_G.arg) do
-        local stat = vim.uv.fs_stat(path)
-        if stat and stat.type == "directory" then
-            vim.list_extend(files, vim.fn.globpath(path, "**/*_spec.lua", true, true))
-        elseif stat then
-            table.insert(files, path)
+        if path == "-v" or path == "--verbose" then
+            verbose = true
+        else
+            local stat = vim.uv.fs_stat(path)
+            if stat and stat.type == "directory" then
+                vim.list_extend(files, vim.fn.globpath(path, "**/*_spec.lua", true, true))
+            elseif stat then
+                table.insert(files, path)
+            end
         end
     end
     table.sort(files)
@@ -391,6 +435,12 @@ mod.run = function()
     local start_time = vim.uv.hrtime()
 
     print(color_string("bold", centered_line("test session starts")))
+    local uname = vim.uv.os_uname()
+    local nv = vim.version()
+    local nvim_ver = string.format("Neovim %d.%d.%d", nv.major, nv.minor, nv.patch)
+    local lua_ver = jit and jit.version or _VERSION
+    print(string.format("platform %s -- %s, %s", uname.sysname:lower(), nvim_ver, lua_ver))
+    print("rootdir: " .. vim.uv.cwd())
     print(string.format("collected %d items", grand_total))
     print("")
 
