@@ -38,7 +38,7 @@ local cargo_metadata = setmetatable({}, {
 ---@param dir string @Directory to treat as cwd
 ---@return string | nil @Absolute root dir of test suite
 function adapter.root(dir)
-    local cwd = lib.files.match_root_pattern("Cargo.toml")(vim.fs.normalize(dir))
+    local cwd = lib.files.match_root_pattern("Cargo.toml")(dir)
 
     if cwd == nil then
         return vim.fs.root(0, "Cargo.toml")
@@ -85,45 +85,25 @@ function adapter.filter_dir(name, rel_path, root)
     return root .. Path.path.sep .. rel_path ~= cargo_metadata(root).target_directory
 end
 
-local get_package_root = function(path)
-    return lib.files.match_root_pattern("Cargo.toml")(vim.fs.normalize(path))
-end
+local get_package_root = lib.files.match_root_pattern("Cargo.toml")
 
 local function is_unit_test(path)
-    local root = get_package_root(path)
-    if not root then
-        return false
-    end
-    return vim.startswith(vim.fs.normalize(path), root .. "/src/")
+    return vim.startswith(path, get_package_root(path) .. Path.path.sep .. "src" .. Path.path.sep)
 end
 
 local function is_integration_test(path)
-    local root = get_package_root(path)
-    if not root then
-        return false
-    end
-    return vim.startswith(vim.fs.normalize(path), root .. "/tests/")
+    return vim.startswith(path, get_package_root(path) .. Path.path.sep .. "tests" .. Path.path.sep)
 end
 
 local function is_alternate_binary(path)
-    local root = get_package_root(path)
-    if not root then
-        return false
-    end
-    return vim.startswith(vim.fs.normalize(path), root .. "/src/bin/")
+    return vim.startswith(
+        path,
+        get_package_root(path) .. Path.path.sep .. "src" .. Path.path.sep .. "bin" .. Path.path.sep
+    )
 end
 
 local function path_to_test_path(path)
     local root = get_package_root(path)
-    if not root then
-        return nil
-    end
-
-    local unit = is_unit_test(path)
-    local alt_bin = is_alternate_binary(path)
-
-    path = vim.fs.normalize(path)
-
     -- main.rs, lib.rs, and mod.rs aren't part of the test name
     for _, filename in ipairs({ "main", "lib", "mod" }) do
         path = path:gsub(filename .. ".rs$", "")
@@ -132,24 +112,26 @@ local function path_to_test_path(path)
     -- Trim '.rs'
     path = path:gsub(".rs$", "")
 
-    if unit then
-        if alt_bin then
+    if is_unit_test(path) then
+        if is_alternate_binary(path) then
             return nil
         end
-        path = Path:new(path):make_relative(root .. "/src")
+        path = Path:new(path)
+        path = path:make_relative(root .. Path.path.sep .. "src")
     else
-        path = Path:new(path):make_relative(root .. "/tests")
+        path = Path:new(path)
+        path = path:make_relative(root .. Path.path.sep .. "tests")
         -- Remove the first component of the path of an integration test in a
         -- subdirectory, e.g. 'testsuite/foo/bar.rs' becomes 'foo/bar.rs'
-        if path:find("/") then
-            path = path:gsub("^.+/", "")
+        if path:find(Path.path.sep) then
+            path = path:gsub("^.+" .. Path.path.sep, "")
         else
             return nil
         end
     end
 
     -- Replace separators with '::'
-    path = path:gsub("/", "::")
+    path = path:gsub(Path.path.sep, "::")
 
     -- If the file was main.rs, lib.rs, or mod.rs, the relative path will
     -- be "." after we strip the filename.
