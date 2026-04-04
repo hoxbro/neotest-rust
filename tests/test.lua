@@ -135,9 +135,11 @@ end
 -- Cumulative counters across all files (set in mod.run)
 local grand_total = 0
 local grand_done = 0
+local grand_deselected = 0
 local had_any_failure = false
 local verbose = false
 local current_file = ""
+local filter_pattern = nil
 
 mod.describe = function(desc, func)
     results.pass = results.pass or {}
@@ -185,11 +187,19 @@ local function verbose_line(desc_stack, status_str, status_color)
 end
 
 mod.it = function(desc, func)
+    if filter_pattern then
+        local full_name = current_file .. "::" .. table.concat(current_description, "::") .. "::" .. desc
+        if vim.fn.match(full_name, filter_pattern) == -1 then
+            grand_deselected = grand_deselected + 1
+            return
+        end
+    end
+
     run_each(current_before_each)
     local ok, msg, desc_stack = call_inner(desc, func)
     run_each(current_after_each)
 
-    local test_result = { descriptions = desc_stack, msg = nil }
+    local test_result = { file = current_file, descriptions = desc_stack, msg = nil }
     grand_done = grand_done + 1
 
     if not ok then
@@ -210,6 +220,14 @@ mod.it = function(desc, func)
 end
 
 mod.pending = function(desc, _)
+    if filter_pattern then
+        local full_name = current_file .. "::" .. table.concat(current_description, "::") .. "::" .. desc
+        if vim.fn.match(full_name, filter_pattern) == -1 then
+            grand_deselected = grand_deselected + 1
+            return
+        end
+    end
+
     local curr_stack = vim.deepcopy(current_description)
     table.insert(curr_stack, desc)
     table.insert(results.skip, { descriptions = curr_stack })
@@ -240,15 +258,30 @@ local function count_tests_in_file(file)
     local saved_describe = describe
     local saved_before_each = before_each
     local saved_after_each = after_each
+    local count_desc = {}
 
-    it = function(_, _)
-        count = count + 1
+    local function matches_filter(desc)
+        if not filter_pattern then
+            return true
+        end
+        local full_name = file .. "::" .. table.concat(count_desc, "::") .. "::" .. desc
+        return vim.fn.match(full_name, filter_pattern) ~= -1
     end
-    pending = function(_, _)
-        count = count + 1
+
+    it = function(desc, _)
+        if matches_filter(desc) then
+            count = count + 1
+        end
     end
-    describe = function(_, func)
+    pending = function(desc, _)
+        if matches_filter(desc) then
+            count = count + 1
+        end
+    end
+    describe = function(desc, func)
+        table.insert(count_desc, desc)
         func()
+        count_desc[#count_desc] = nil
     end
     before_each = function(_) end
     after_each = function(_) end
@@ -381,7 +414,7 @@ local _single_run = function(file)
     if not loaded then
         grand_done = grand_done + 1
         had_any_failure = true
-        table.insert(results.errs, { descriptions = {}, msg = msg })
+        table.insert(results.errs, { file = file, descriptions = {}, msg = msg })
         table.insert(results._ordered, { kind = "error" })
         if not verbose then
             print_file_line(file, results)
@@ -411,9 +444,14 @@ end
 --- Prints a final summary and exits with the appropriate code.
 mod.run = function()
     local files = {}
-    for _, path in ipairs(_G.arg) do
+    local i = 1
+    while i <= #_G.arg do
+        local path = _G.arg[i]
         if path == "-v" or path == "--verbose" then
             verbose = true
+        elseif path == "-k" or path == "--filter" then
+            i = i + 1
+            filter_pattern = _G.arg[i]
         else
             local stat = vim.uv.fs_stat(path)
             if stat and stat.type == "directory" then
@@ -422,6 +460,7 @@ mod.run = function()
                 table.insert(files, path)
             end
         end
+        i = i + 1
     end
     table.sort(files)
 
@@ -441,7 +480,18 @@ mod.run = function()
     local lua_ver = jit and jit.version or _VERSION
     print(string.format("platform %s -- %s, %s", uname.sysname:lower(), nvim_ver, lua_ver))
     print("rootdir: " .. vim.uv.cwd())
-    print(string.format("collected %d items", grand_total))
+    if filter_pattern then
+        print(
+            string.format(
+                "collected %d items / %d selected (%s)",
+                grand_total + grand_deselected,
+                grand_total,
+                filter_pattern
+            )
+        )
+    else
+        print(string.format("collected %d items", grand_total))
+    end
     print("")
 
     local total_pass, total_fail, total_errs, total_skip = 0, 0, 0, 0
@@ -470,7 +520,7 @@ mod.run = function()
         print("")
         print(color_string("red", centered_line("FAILURES")))
         for _, f in ipairs(all_failures) do
-            local name = table.concat(f.descriptions, " :: ")
+            local name = (f.file or "") .. "::" .. table.concat(f.descriptions, " :: ")
             print(color_string("red", centered_line(name, "_")))
             if f.msg then
                 print(indent(f.msg, 4))
@@ -483,7 +533,8 @@ mod.run = function()
         print("")
         print(color_string("red", centered_line("ERRORS")))
         for _, e in ipairs(all_errors) do
-            local desc = #e.descriptions > 0 and table.concat(e.descriptions, " :: ") or "(load error)"
+            local desc = #e.descriptions > 0 and (e.file or "") .. "::" .. table.concat(e.descriptions, " :: ")
+                or (e.file or "(load error)")
             print(color_string("red", centered_line(desc, "_")))
             if e.msg then
                 print(indent(e.msg, 4))
@@ -495,11 +546,12 @@ mod.run = function()
     if #all_failures > 0 or #all_errors > 0 then
         print(color_string("red", centered_line("short test summary info")))
         for _, f in ipairs(all_failures) do
-            local name = table.concat(f.descriptions, "::")
+            local name = (f.file or "") .. "::" .. table.concat(f.descriptions, "::")
             print(color_string("red", "FAILED") .. " " .. name)
         end
         for _, e in ipairs(all_errors) do
-            local desc = #e.descriptions > 0 and table.concat(e.descriptions, "::") or "(load error)"
+            local desc = #e.descriptions > 0 and (e.file or "") .. "::" .. table.concat(e.descriptions, "::")
+                or (e.file or "(load error)")
             print(color_string("red", "ERROR") .. " " .. desc)
         end
     end
@@ -522,6 +574,10 @@ mod.run = function()
     if total_skip > 0 then
         table.insert(parts, color_string("yellow", total_skip .. " skipped"))
         table.insert(plain_parts, total_skip .. " skipped")
+    end
+    if grand_deselected > 0 then
+        table.insert(parts, color_string("yellow", grand_deselected .. " deselected"))
+        table.insert(plain_parts, grand_deselected .. " deselected")
     end
 
     local time_str = string.format("in %.2fs", elapsed)
