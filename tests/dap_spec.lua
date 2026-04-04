@@ -10,7 +10,7 @@ describe("get_test_binary", function()
     -- tests/testsuite/main.rs. We can only test that they match expected substrings
     -- and that the other modules resolve to their source binaries
     describe("for a simple-package", function()
-        local cwd = vim.uv.cwd()
+        local cwd = vim.fs.normalize(vim.uv.cwd() or ".")
         local root = cwd .. "/tests/data/simple-package"
 
         local lib_actual = dap.get_test_binary(root, root .. "/src/lib.rs")
@@ -89,14 +89,14 @@ describe("get_test_binary", function()
         async.it("returns the test binary for tests/testsuite/main.rs", function()
             assert(testsuite_actual)
             local expected = root .. "/target/debug/deps/testsuite-"
-            local actual = strings.truncate(testsuite_actual, testsuite_actual:len() - 16, "-")
+            local actual = strings.truncate(testsuite_actual, testsuite_actual:len() - reduce_count, "-")
 
             assert.equal(expected, actual)
         end)
     end)
 
     describe("for a workspace", function()
-        local cwd = vim.uv.cwd()
+        local cwd = vim.fs.normalize(vim.uv.cwd() or ".")
         local root = cwd .. "/tests/data/workspace"
 
         async.it("returns the test binary for with_unit_tests/src/main.rs", function()
@@ -136,7 +136,7 @@ end)
 
 describe("translate_results", function()
     async.it("parses results with a single test suite in it", function()
-        local cwd = vim.uv.cwd()
+        local cwd = vim.fs.normalize(vim.uv.cwd() or ".")
         local path = cwd .. "/tests/data/simple-package/1"
 
         local results = dap.translate_results(path)
@@ -149,7 +149,7 @@ describe("translate_results", function()
     end)
 
     async.it("translates raw results with multiple test suites in it", function()
-        local cwd = vim.uv.cwd()
+        local cwd = vim.fs.normalize(vim.uv.cwd() or ".")
         local path = cwd .. "/tests/data/simple-package/3"
 
         local results = dap.translate_results(path)

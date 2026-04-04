@@ -434,7 +434,7 @@ local _single_run = function(file)
         results._ordered = {}
     end
 
-    if not verbose then
+    if not verbose and #results._ordered > 0 then
         print_file_line(file, results)
     end
     return results

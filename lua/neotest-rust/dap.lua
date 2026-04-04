@@ -108,6 +108,7 @@ end
 
 -- Recursive search for 'path' amongst all modules declared in 'src_path'
 local function search_modules(src_path, path)
+    path = vim.fs.normalize(path)
     local mods = get_mods(src_path)
 
     for _, mod in ipairs(mods) do
