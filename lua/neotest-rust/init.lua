@@ -148,7 +148,7 @@ local function integration_test_name(path)
     path = Path:new(path)
     path = path:make_relative(package_root .. Path.path.sep .. "tests")
     path = path:gsub(".rs$", "")
-    return vim.split(path, "/")[1]
+    return vim.split(path, Path.path.sep)[1]
 end
 
 local function binary_name(path)
@@ -157,7 +157,7 @@ local function binary_name(path)
     path = Path:new(path)
     path = path:make_relative(package_root .. Path.path.sep .. "src" .. Path.path.sep .. "bin")
     path = path:gsub(".rs$", "")
-    return vim.split(path, "/")[1]
+    return vim.split(path, Path.path.sep)[1]
 end
 
 local function tbl_flatten(tbl)
