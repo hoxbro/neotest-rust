@@ -90,12 +90,7 @@ local TERM_WIDTH = (function()
     return 80
 end)()
 
-local color_table = {
-    yellow = 33,
-    green = 32,
-    red = 31,
-    bold = 1,
-}
+local color_table = { yellow = 33, green = 32, red = 31, bold = 1 }
 
 local color_string = function(color, str)
     return string.format("%s[%sm%s%s[%sm", string.char(27), color_table[color] or 0, str, string.char(27), 0)
@@ -133,8 +128,8 @@ local run_each = function(tbl)
 end
 
 -- Cumulative counters across all files (set in mod.run)
-local grand_total = 0
-local grand_done = 0
+local total = 0
+local done = 0
 local grand_deselected = 0
 local had_any_failure = false
 local verbose = false
@@ -147,16 +142,6 @@ mod.describe = function(desc, func)
     results.errs = results.errs or {}
     results.skip = results.skip or {}
 
-    describe = mod.inner_describe
-    local ok, msg, desc_stack = call_inner(desc, func)
-    describe = mod.describe
-
-    if not ok then
-        table.insert(results.errs, { descriptions = desc_stack, msg = msg })
-    end
-end
-
-mod.inner_describe = function(desc, func)
     local ok, msg, desc_stack = call_inner(desc, func)
     if not ok then
         table.insert(results.errs, { descriptions = desc_stack, msg = msg })
@@ -171,12 +156,8 @@ mod.after_each = function(fn)
     table.insert(current_after_each[#current_description], fn)
 end
 
-mod.clear = function()
-    vim.api.nvim_buf_set_lines(0, 0, -1, false, {})
-end
-
 local function verbose_line(desc_stack, status_str, status_color)
-    local pct = grand_total > 0 and math.floor(grand_done / grand_total * 100) or 100
+    local pct = total > 0 and math.floor(done / total * 100) or 100
     local pct_color = had_any_failure and "red" or "green"
     local suffix = color_string(pct_color, string.format("[%3d%%]", pct))
     local name = current_file .. "::" .. table.concat(desc_stack, "::")
@@ -200,19 +181,19 @@ mod.it = function(desc, func)
     run_each(current_after_each)
 
     local test_result = { file = current_file, descriptions = desc_stack, msg = nil }
-    grand_done = grand_done + 1
+    done = done + 1
 
     if not ok then
         test_result.msg = msg
         had_any_failure = true
         table.insert(results.fail, test_result)
-        table.insert(results._ordered, { kind = "fail", cumulative = grand_done })
+        table.insert(results._ordered, { kind = "fail", cumulative = done })
         if verbose then
             verbose_line(desc_stack, "FAILED", "red")
         end
     else
         table.insert(results.pass, test_result)
-        table.insert(results._ordered, { kind = "pass", cumulative = grand_done })
+        table.insert(results._ordered, { kind = "pass", cumulative = done })
         if verbose then
             verbose_line(desc_stack, "PASSED", "green")
         end
@@ -231,22 +212,19 @@ mod.pending = function(desc, _)
     local curr_stack = vim.deepcopy(current_description)
     table.insert(curr_stack, desc)
     table.insert(results.skip, { descriptions = curr_stack })
-    grand_done = grand_done + 1
-    table.insert(results._ordered, { kind = "skip", cumulative = grand_done })
+    done = done + 1
+    table.insert(results._ordered, { kind = "skip", cumulative = done })
     if verbose then
         verbose_line(curr_stack, "SKIPPED", "yellow")
     end
 end
 
 -- Set globals
-_PlenaryBustedOldAssert = _PlenaryBustedOldAssert or assert
 describe = mod.describe
 it = mod.it
 pending = mod.pending
 before_each = mod.before_each
 after_each = mod.after_each
----@diagnostic disable-next-line: lowercase-global
-clear = mod.clear
 assert = require("luassert")
 
 --- Count total tests in a file without running them, by temporarily
@@ -315,7 +293,7 @@ end
 --- The line never exceeds TERM_WIDTH visible characters.
 --- The [XXX%] suffix is colored green if all passed, red if any failed.
 local function print_file_line(file, file_results)
-    local pct = grand_total > 0 and math.floor(grand_done / grand_total * 100) or 100
+    local pct = total > 0 and math.floor(done / total * 100) or 100
     local suffix = string.format("[%3d%%]", pct)
     -- suffix is 6 chars, plus 1 space before it = 7 reserved at end
     local reserved = #suffix + 1
@@ -325,16 +303,13 @@ local function print_file_line(file, file_results)
 
     -- Build the ordered marker list (.Fs)
     local markers = {}
-    local file_had_failure = false
     for _, r in ipairs(file_results._ordered) do
         if r.kind == "pass" then
             table.insert(markers, ".")
         elseif r.kind == "fail" then
             table.insert(markers, "F")
-            file_had_failure = true
         elseif r.kind == "error" then
             table.insert(markers, "E")
-            file_had_failure = true
         elseif r.kind == "skip" then
             table.insert(markers, "s")
         end
@@ -382,7 +357,7 @@ local function print_file_line(file, file_results)
         end
 
         -- Show percentage based on cumulative progress of last marker in chunk
-        local chunk_pct = math.floor(file_results._ordered[chunk_end].cumulative / grand_total * 100)
+        local chunk_pct = math.floor(file_results._ordered[chunk_end].cumulative / total * 100)
         local chunk_suffix = string.format("[%3d%%]", chunk_pct)
         print(line_prefix .. colored .. string.rep(" ", padding) .. " " .. color_string(suffix_color, chunk_suffix))
 
@@ -400,7 +375,7 @@ local function print_file_line(file, file_results)
     end
 end
 
-local _single_run = function(file)
+local run_file = function(file)
     file = file:gsub("\\", "/")
     current_file = file
     results = {}
@@ -412,7 +387,7 @@ local _single_run = function(file)
 
     local loaded, msg = loadfile(file)
     if not loaded then
-        grand_done = grand_done + 1
+        done = done + 1
         had_any_failure = true
         table.insert(results.errs, { file = file, descriptions = {}, msg = msg })
         table.insert(results._ordered, { kind = "error" })
@@ -422,17 +397,7 @@ local _single_run = function(file)
         return results
     end
 
-    coroutine.wrap(function()
-        loaded()
-    end)()
-
-    if not results.pass then
-        results.pass = {}
-        results.fail = {}
-        results.errs = {}
-        results.skip = {}
-        results._ordered = {}
-    end
+    coroutine.wrap(loaded)()
 
     if not verbose and #results._ordered > 0 then
         print_file_line(file, results)
@@ -440,9 +405,7 @@ local _single_run = function(file)
     return results
 end
 
---- Collect spec files from the given paths and run them all.
---- Prints a final summary and exits with the appropriate code.
-mod.run = function()
+local function parse_args()
     local files = {}
     local i = 1
     while i <= #_G.arg do
@@ -463,16 +426,10 @@ mod.run = function()
         i = i + 1
     end
     table.sort(files)
+    return files
+end
 
-    -- Count total tests across all files for percentage calculation
-    grand_total = 0
-    grand_done = 0
-    for _, file in ipairs(files) do
-        grand_total = grand_total + count_tests_in_file(file)
-    end
-
-    local start_time = vim.uv.hrtime()
-
+local function print_session_header()
     print(color_string("bold", centered_line("test session starts")))
     local uname = vim.uv.os_uname()
     local nv = vim.version()
@@ -481,41 +438,28 @@ mod.run = function()
     print(string.format("platform %s -- %s, %s", uname.sysname:lower(), nvim_ver, lua_ver))
     print("rootdir: " .. vim.uv.cwd())
     if filter_pattern then
-        print(
-            string.format(
-                "collected %d items / %d selected (%s)",
-                grand_total + grand_deselected,
-                grand_total,
-                filter_pattern
-            )
-        )
+        print(string.format("collected %d items / %d selected (%s)", total + grand_deselected, total, filter_pattern))
     else
-        print(string.format("collected %d items", grand_total))
+        print(string.format("collected %d items", total))
     end
     print("")
+end
 
-    local total_pass, total_fail, total_errs, total_skip = 0, 0, 0, 0
-    local all_failures = {}
-    local all_errors = {}
-
+local function run_all_files(files)
+    local totals = { pass = 0, fail = 0, errs = 0, skip = 0, failures = {}, errors = {} }
     for _, file in ipairs(files) do
-        local res = _single_run(file)
-        total_pass = total_pass + #res.pass
-        total_fail = total_fail + #res.fail
-        total_errs = total_errs + #res.errs
-        total_skip = total_skip + #res.skip
-
-        for _, f in ipairs(res.fail) do
-            table.insert(all_failures, f)
-        end
-        for _, e in ipairs(res.errs) do
-            table.insert(all_errors, e)
-        end
+        local res = run_file(file)
+        totals.pass = totals.pass + #res.pass
+        totals.fail = totals.fail + #res.fail
+        totals.errs = totals.errs + #res.errs
+        totals.skip = totals.skip + #res.skip
+        vim.list_extend(totals.failures, res.fail)
+        vim.list_extend(totals.errors, res.errs)
     end
+    return totals
+end
 
-    local elapsed = (vim.uv.hrtime() - start_time) / 1e9
-
-    -- Print failures section
+local function print_failures_and_errors(all_failures, all_errors)
     if #all_failures > 0 then
         print("")
         print(color_string("red", centered_line("FAILURES")))
@@ -528,7 +472,6 @@ mod.run = function()
         end
     end
 
-    -- Print errors section
     if #all_errors > 0 then
         print("")
         print(color_string("red", centered_line("ERRORS")))
@@ -542,7 +485,6 @@ mod.run = function()
         end
     end
 
-    -- Short test summary info (like pytest)
     if #all_failures > 0 or #all_errors > 0 then
         print(color_string("red", centered_line("short test summary info")))
         for _, f in ipairs(all_failures) do
@@ -555,39 +497,30 @@ mod.run = function()
             print(color_string("red", "ERROR") .. " " .. desc)
         end
     end
+end
 
-    -- Build summary line
+local function print_summary_line(totals, elapsed)
     local parts = {}
     local plain_parts = {}
-    if total_fail > 0 then
-        table.insert(parts, color_string("red", total_fail .. " failed"))
-        table.insert(plain_parts, total_fail .. " failed")
+    local function add(color, n, label)
+        if n > 0 then
+            table.insert(parts, color_string(color, n .. " " .. label))
+            table.insert(plain_parts, n .. " " .. label)
+        end
     end
-    if total_errs > 0 then
-        table.insert(parts, color_string("red", total_errs .. " errors"))
-        table.insert(plain_parts, total_errs .. " errors")
-    end
-    if total_pass > 0 then
-        table.insert(parts, color_string("green", total_pass .. " passed"))
-        table.insert(plain_parts, total_pass .. " passed")
-    end
-    if total_skip > 0 then
-        table.insert(parts, color_string("yellow", total_skip .. " skipped"))
-        table.insert(plain_parts, total_skip .. " skipped")
-    end
-    if grand_deselected > 0 then
-        table.insert(parts, color_string("yellow", grand_deselected .. " deselected"))
-        table.insert(plain_parts, grand_deselected .. " deselected")
-    end
+    add("red", totals.fail, "failed")
+    add("red", totals.errs, "errors")
+    add("green", totals.pass, "passed")
+    add("yellow", totals.skip, "skipped")
+    add("yellow", grand_deselected, "deselected")
 
     local time_str = string.format("in %.2fs", elapsed)
     local summary_text = table.concat(parts, ", ") .. " " .. time_str
     local summary_plain = table.concat(plain_parts, ", ") .. " " .. time_str
 
-    local has_failures = total_fail > 0 or total_errs > 0
+    local has_failures = totals.fail > 0 or totals.errs > 0
     local fill_color = has_failures and "red" or "green"
 
-    -- Build the centered "= summary =" line
     local pad = TERM_WIDTH - #summary_plain - 2
     if pad < 2 then
         print(summary_text)
@@ -603,11 +536,26 @@ mod.run = function()
         )
     end
 
-    if has_failures then
-        vim.cmd("1cq")
-    else
-        vim.cmd("0cq")
+    return has_failures
+end
+
+--- Collect spec files from the given paths and run them all.
+--- Prints a final summary and exits with the appropriate code.
+mod.run = function()
+    local files = parse_args()
+
+    total, done = 0, 0
+    for _, file in ipairs(files) do
+        total = total + count_tests_in_file(file)
     end
+
+    local start_time = vim.uv.hrtime()
+    print_session_header()
+    local totals = run_all_files(files)
+    local elapsed = (vim.uv.hrtime() - start_time) / 1e9
+    print_failures_and_errors(totals.failures, totals.errors)
+    local has_failures = print_summary_line(totals, elapsed)
+    vim.cmd(has_failures and "1cq" or "0cq")
 end
 
 return mod
