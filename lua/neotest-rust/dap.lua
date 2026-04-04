@@ -36,7 +36,7 @@ local function get_src_paths(root)
         if string.find(line, src_filter) and string.find(line, exe_filter) then
             local src_path = string.match(line, src_filter)
             local executable = string.match(line, exe_filter)
-            src_paths[src_path] = executable
+            src_paths[vim.fs.normalize(src_path)] = vim.fs.normalize(executable)
         end
         line = handle:read("l")
     end
@@ -96,11 +96,11 @@ local function construct_mod_path(src_path, mod_name)
     local child_mod = abs_path .. parent_mod .. sep .. mod_name .. ".rs"
 
     if util.file_exists(mod_file) then
-        return mod_file
+        return vim.fs.normalize(mod_file)
     elseif util.file_exists(mod_dir) then
-        return mod_dir
+        return vim.fs.normalize(mod_dir)
     elseif util.file_exists(child_mod) then
-        return child_mod
+        return vim.fs.normalize(child_mod)
     end
 
     return nil
@@ -130,7 +130,7 @@ M.get_test_binary = function(root, path)
 
     -- If 'path' is the source of the binary we are done
     for src_path, executable in pairs(src_paths) do
-        if path == src_path then
+        if vim.fs.normalize(path) == src_path then
             return executable
         end
     end
