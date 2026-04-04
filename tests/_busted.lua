@@ -28,9 +28,12 @@ end
 
 -- Shadow print so output is reliably flushed
 print = function(...)
-    for _, v in ipairs({ ... }) do
+    local args = { ... }
+    for i, v in ipairs(args) do
         io.stdout:write(tostring(v))
-        io.stdout:write("\t")
+        if i < #args then
+            io.stdout:write("\t")
+        end
     end
     io.stdout:write("\r\n")
 end
@@ -73,21 +76,33 @@ local call_inner = function(desc, func)
     return ok, msg, desc_stack
 end
 
+local TERM_WIDTH = 80
+
 local color_table = {
     yellow = 33,
     green = 32,
     red = 31,
+    bold = 1,
 }
 
 local color_string = function(color, str)
     return string.format("%s[%sm%s%s[%sm", string.char(27), color_table[color] or 0, str, string.char(27), 0)
 end
 
-local SUCCESS = color_string("green", "Success")
-local FAIL = color_string("red", "Fail")
-local PENDING = color_string("yellow", "Pending")
-
-local HEADER = string.rep("=", 40)
+--- Build a centered line like "======== text ========" padded to TERM_WIDTH.
+local function centered_line(text, fill_char)
+    fill_char = fill_char or "="
+    if #text == 0 then
+        return string.rep(fill_char, TERM_WIDTH)
+    end
+    local pad = TERM_WIDTH - #text - 2
+    if pad < 2 then
+        return text
+    end
+    local left = math.floor(pad / 2)
+    local right = pad - left
+    return string.rep(fill_char, left) .. " " .. text .. " " .. string.rep(fill_char, right)
+end
 
 local indent = function(msg, spaces)
     spaces = spaces or 4
@@ -105,18 +120,15 @@ local run_each = function(tbl)
     end
 end
 
-mod.format_results = function(res)
-    print("")
-    print(color_string("green", "Success: "), #res.pass)
-    print(color_string("red", "Failed : "), #res.fail)
-    print(color_string("red", "Errors : "), #res.errs)
-    print(HEADER)
-end
+-- Cumulative counters across all files (set in mod.run)
+local grand_total = 0
+local grand_done = 0
 
 mod.describe = function(desc, func)
     results.pass = results.pass or {}
     results.fail = results.fail or {}
     results.errs = results.errs or {}
+    results.skip = results.skip or {}
 
     describe = mod.inner_describe
     local ok, msg, desc_stack = call_inner(desc, func)
@@ -152,22 +164,24 @@ mod.it = function(desc, func)
     run_each(current_after_each)
 
     local test_result = { descriptions = desc_stack, msg = nil }
+    grand_done = grand_done + 1
 
     if not ok then
         test_result.msg = msg
         table.insert(results.fail, test_result)
-        print(FAIL, "||", table.concat(test_result.descriptions, " "))
-        print(indent(msg, 12))
+        table.insert(results._ordered, { kind = "fail", cumulative = grand_done })
     else
         table.insert(results.pass, test_result)
-        print(SUCCESS, "||", table.concat(test_result.descriptions, " "))
+        table.insert(results._ordered, { kind = "pass", cumulative = grand_done })
     end
 end
 
 mod.pending = function(desc, _)
     local curr_stack = vim.deepcopy(current_description)
     table.insert(curr_stack, desc)
-    print(PENDING, "||", table.concat(curr_stack, " "))
+    table.insert(results.skip, { descriptions = curr_stack })
+    grand_done = grand_done + 1
+    table.insert(results._ordered, { kind = "skip", cumulative = grand_done })
 end
 
 -- Set globals
@@ -181,22 +195,157 @@ clear = mod.clear
 ---@type Luassert
 assert = require("luassert")
 
+--- Count total tests in a file without running them, by temporarily
+--- replacing `it` and `pending` with counters.
+local function count_tests_in_file(file)
+    local count = 0
+    local saved_it = it
+    local saved_pending = pending
+    local saved_describe = describe
+    local saved_before_each = before_each
+    local saved_after_each = after_each
+
+    it = function(_, _)
+        count = count + 1
+    end
+    pending = function(_, _)
+        count = count + 1
+    end
+    describe = function(_, func)
+        func()
+    end
+    before_each = function(_) end
+    after_each = function(_) end
+
+    local loaded = loadfile(file)
+    if loaded then
+        local ok, _ = pcall(function()
+            coroutine.wrap(function()
+                loaded()
+            end)()
+        end)
+        if not ok then
+            count = 1 -- at least 1 for the error
+        end
+    else
+        count = 1
+    end
+
+    it = saved_it
+    pending = saved_pending
+    describe = saved_describe
+    before_each = saved_before_each
+    after_each = saved_after_each
+
+    return count
+end
+
+--- Print a single file's test line in pytest format:
+---   filepath .F..s                                              [XXX%]
+--- When markers overflow, they wrap to continuation lines like pytest.
+--- The line never exceeds TERM_WIDTH visible characters.
+--- The [XXX%] suffix is colored green if all passed, red if any failed.
+local function print_file_line(file, file_results)
+    local pct = grand_total > 0 and math.floor(grand_done / grand_total * 100) or 100
+    local suffix = string.format("[%3d%%]", pct)
+    -- suffix is 6 chars, plus 1 space before it = 7 reserved at end
+    local reserved = #suffix + 1
+
+    local prefix = file .. " "
+    local prefix_len = #prefix
+
+    -- Build the ordered marker list (.Fs)
+    local markers = {}
+    local file_had_failure = false
+    for _, r in ipairs(file_results._ordered) do
+        if r.kind == "pass" then
+            table.insert(markers, ".")
+        elseif r.kind == "fail" then
+            table.insert(markers, "F")
+            file_had_failure = true
+        elseif r.kind == "error" then
+            table.insert(markers, "E")
+            file_had_failure = true
+        elseif r.kind == "skip" then
+            table.insert(markers, "s")
+        end
+    end
+
+    local suffix_color = file_had_failure and "red" or "green"
+
+    --- Color a single marker character
+    local function color_marker(m)
+        if m == "F" or m == "E" then
+            return color_string("red", m)
+        elseif m == "s" then
+            return color_string("yellow", m)
+        else
+            return color_string("green", m)
+        end
+    end
+
+    -- How many marker chars fit on the first line (with prefix)?
+    local first_avail = TERM_WIDTH - prefix_len - reserved
+    if first_avail < 1 then
+        first_avail = 1
+    end
+    -- Continuation lines have no prefix, just markers right-aligned
+    local cont_avail = TERM_WIDTH - reserved
+
+    local pos = 1
+    local total_markers = #markers
+    local is_first = true
+
+    while pos <= total_markers do
+        local avail = is_first and first_avail or cont_avail
+        local chunk_end = math.min(pos + avail - 1, total_markers)
+        local chunk_len = chunk_end - pos + 1
+
+        local colored = ""
+        for i = pos, chunk_end do
+            colored = colored .. color_marker(markers[i])
+        end
+
+        local line_prefix = is_first and prefix or ""
+        local padding = avail - chunk_len
+        if padding < 0 then
+            padding = 0
+        end
+
+        -- Show percentage based on cumulative progress of last marker in chunk
+        local chunk_pct = math.floor(file_results._ordered[chunk_end].cumulative / grand_total * 100)
+        local chunk_suffix = string.format("[%3d%%]", chunk_pct)
+        print(line_prefix .. colored .. string.rep(" ", padding) .. " " .. color_string(suffix_color, chunk_suffix))
+
+        pos = chunk_end + 1
+        is_first = false
+    end
+
+    -- Edge case: no markers at all (empty file)
+    if total_markers == 0 then
+        local padding = TERM_WIDTH - prefix_len - reserved
+        if padding < 0 then
+            padding = 0
+        end
+        print(prefix .. string.rep(" ", padding) .. " " .. color_string(suffix_color, suffix))
+    end
+end
+
 local _single_run = function(file)
     file = file:gsub("\\", "/")
     results = {}
-
-    print("\n" .. HEADER)
-    print("Testing: ", file)
+    results.pass = {}
+    results.fail = {}
+    results.errs = {}
+    results.skip = {}
+    results._ordered = {}
 
     local loaded, msg = loadfile(file)
     if not loaded then
-        print(HEADER)
-        print("FAILED TO LOAD FILE")
-        print(color_string("red", msg))
-        print(HEADER)
-        results.pass = {}
-        results.fail = {}
-        results.errs = { { descriptions = {}, msg = msg } }
+        grand_done = grand_done + 1
+        table.insert(results.errs, { descriptions = {}, msg = msg })
+        table.insert(results._ordered, { kind = "error" })
+        print_file_line(file, results)
         return results
     end
 
@@ -208,9 +357,11 @@ local _single_run = function(file)
         results.pass = {}
         results.fail = {}
         results.errs = {}
+        results.skip = {}
+        results._ordered = {}
     end
 
-    mod.format_results(results)
+    print_file_line(file, results)
     return results
 end
 
@@ -226,22 +377,133 @@ mod.run = function()
             table.insert(files, path)
         end
     end
+    table.sort(files)
 
-    local total_pass, total_fail, total_errs = 0, 0, 0
+    -- Count total tests across all files for percentage calculation
+    grand_total = 0
+    grand_done = 0
+    for _, file in ipairs(files) do
+        grand_total = grand_total + count_tests_in_file(file)
+    end
+
+    local start_time = vim.uv.hrtime()
+
+    print(color_string("bold", centered_line("test session starts")))
+    print(string.format("collected %d items", grand_total))
+    print("")
+
+    local total_pass, total_fail, total_errs, total_skip = 0, 0, 0, 0
+    local all_failures = {}
+    local all_errors = {}
+
     for _, file in ipairs(files) do
         local res = _single_run(file)
         total_pass = total_pass + #res.pass
         total_fail = total_fail + #res.fail
         total_errs = total_errs + #res.errs
+        total_skip = total_skip + #res.skip
+
+        for _, f in ipairs(res.fail) do
+            table.insert(all_failures, f)
+        end
+        for _, e in ipairs(res.errs) do
+            table.insert(all_errors, e)
+        end
     end
 
-    print("\n" .. HEADER)
-    print(color_string("green", "Total Success || "), total_pass)
-    print(color_string("red", "Total Failed || "), total_fail)
-    print(color_string("red", "Total Errors || "), total_errs)
-    print(HEADER)
+    local elapsed = (vim.uv.hrtime() - start_time) / 1e9
 
-    if total_fail > 0 or total_errs > 0 then
+    -- Print failures section
+    if #all_failures > 0 then
+        print("")
+        print(color_string("red", centered_line("FAILURES")))
+        for _, f in ipairs(all_failures) do
+            local name = table.concat(f.descriptions, " :: ")
+            print(color_string("red", centered_line(name, "_")))
+            if f.msg then
+                print(indent(f.msg, 4))
+            end
+        end
+    end
+
+    -- Print errors section
+    if #all_errors > 0 then
+        print("")
+        print(color_string("red", centered_line("ERRORS")))
+        for _, e in ipairs(all_errors) do
+            local desc = #e.descriptions > 0 and table.concat(e.descriptions, " :: ") or "(load error)"
+            print(color_string("red", centered_line(desc, "_")))
+            if e.msg then
+                print(indent(e.msg, 4))
+            end
+        end
+    end
+
+    -- Short test summary info (like pytest)
+    if #all_failures > 0 or #all_errors > 0 then
+        print(color_string("red", centered_line("short test summary info")))
+        for _, f in ipairs(all_failures) do
+            local name = table.concat(f.descriptions, "::")
+            print(color_string("red", "FAILED") .. " " .. name)
+        end
+        for _, e in ipairs(all_errors) do
+            local desc = #e.descriptions > 0 and table.concat(e.descriptions, "::") or "(load error)"
+            print(color_string("red", "ERROR") .. " " .. desc)
+        end
+    end
+
+    -- Build summary line
+    local parts = {}
+    if total_fail > 0 then
+        table.insert(parts, color_string("red", total_fail .. " failed"))
+    end
+    if total_errs > 0 then
+        table.insert(parts, color_string("red", total_errs .. " errors"))
+    end
+    if total_pass > 0 then
+        table.insert(parts, color_string("green", total_pass .. " passed"))
+    end
+    if total_skip > 0 then
+        table.insert(parts, color_string("yellow", total_skip .. " skipped"))
+    end
+
+    local summary_text = table.concat(parts, ", ") .. string.format(" in %.2fs", elapsed)
+    -- For the centered line we need the plain text length
+    local summary_plain = ""
+    if total_fail > 0 then
+        summary_plain = summary_plain .. total_fail .. " failed, "
+    end
+    if total_errs > 0 then
+        summary_plain = summary_plain .. total_errs .. " errors, "
+    end
+    if total_pass > 0 then
+        summary_plain = summary_plain .. total_pass .. " passed, "
+    end
+    if total_skip > 0 then
+        summary_plain = summary_plain .. total_skip .. " skipped, "
+    end
+    summary_plain = summary_plain .. string.format("in %.2fs", elapsed)
+
+    local has_failures = total_fail > 0 or total_errs > 0
+    local fill_color = has_failures and "red" or "green"
+
+    -- Build the centered "= summary =" line
+    local pad = TERM_WIDTH - #summary_plain - 2
+    if pad < 2 then
+        print(summary_text)
+    else
+        local left = math.floor(pad / 2)
+        local right = pad - left
+        print(
+            color_string(fill_color, string.rep("=", left))
+                .. " "
+                .. summary_text
+                .. " "
+                .. color_string(fill_color, string.rep("=", right))
+        )
+    end
+
+    if has_failures then
         vim.cmd("1cq")
     else
         vim.cmd("0cq")
