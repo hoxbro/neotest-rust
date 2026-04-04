@@ -15,6 +15,7 @@ update-all = { depends-on = [
 
 [dependencies]
 cargo-nextest = "*"
+nvim = "*"
 rust = "*"
 tree-sitter-cli = "*"
 
