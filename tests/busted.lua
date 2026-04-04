@@ -63,6 +63,7 @@ local opts = {
         treesitter_spec,
         "nvim-neotest/nvim-nio",
         "nvim-neotest/neotest",
+        { dir = vim.uv.cwd() },
     },
     lockfile = lockfile,
 }
@@ -71,6 +72,31 @@ if _G.arg[1] == "--update" then
     table.remove(_G.arg, 1)
     require("lazy.minit").setup(opts)
 else
-    table.insert(_G.arg, "--offline")
-    require("lazy.minit").busted(opts)
+    local test_args = {}
+    local offline = false
+    for _, a in ipairs(_G.arg) do
+        if a == "--offline" then
+            offline = true
+        else
+            table.insert(test_args, a)
+        end
+    end
+
+    if not offline then
+        table.insert(_G.arg, "--offline")
+    end
+    require("lazy.minit").setup(opts)
+
+    local busted = require("plenary.busted")
+    for _, path in ipairs(test_args) do
+        local stat = (vim.uv or vim.loop).fs_stat(path)
+        if stat and stat.type == "directory" then
+            local files = vim.fn.globpath(path, "**/*_spec.lua", true, true)
+            for _, file in ipairs(files) do
+                busted.run(file)
+            end
+        elseif stat then
+            busted.run(path)
+        end
+    end
 end

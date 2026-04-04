@@ -23,8 +23,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ["ubuntu-latest", "macos-latest"]
+        os: ["ubuntu-latest", "macos-latest", "windows-latest"]
         environment: ["nvim-010", "nvim-011", "nvim-012"]
+        exclude:
+          - os: "windows-latest"
+            environment: "nvim-010"
     steps:
       - uses: actions/checkout@v6
         with:
@@ -43,7 +46,7 @@ jobs:
         run: pixi run -e ${{ matrix.environment }} install
       - name: Test
         shell: bash -e {0}
-        run: pixi run -e ${{ matrix.environment }} test --output=TAP
+        run: pixi run -e ${{ matrix.environment }} test
       - if: steps.cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         with:
