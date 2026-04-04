@@ -1,31 +1,36 @@
 local async = require("nio.tests")
 local plugin = require("neotest-rust")
 local Tree = require("neotest.types").Tree
+local Path = require("plenary.path")
+
+local function data_path(...)
+    return Path:new(vim.uv.cwd(), "tests", "data", ...).filename
+end
 
 describe("is_test_file", function()
     async.it("matches Rust files with tests in them", function()
-        assert.equals(true, plugin.is_test_file(vim.loop.cwd() .. "/tests/data/simple-package/src/mymod/foo.rs"))
+        assert.equals(true, plugin.is_test_file(data_path("simple-package", "src", "mymod", "foo.rs")))
     end)
 
     async.it("doesn't discover non-Rust files", function()
-        assert.equals(false, plugin.is_test_file(vim.loop.cwd() .. "/tests/data/simple-package/Cargo.toml"))
+        assert.equals(false, plugin.is_test_file(data_path("simple-package", "Cargo.toml")))
     end)
 
     async.it("doesn't discover Rust file without tests in it", function()
-        assert.equals(false, plugin.is_test_file(vim.loop.cwd() .. "/tests/data/simple-package/src/mymod/notests.rs"))
+        assert.equals(false, plugin.is_test_file(data_path("simple-package", "src", "mymod", "notests.rs")))
     end)
 end)
 
 describe("discover_positions", function()
     async.it("discovers positions in unit tests in main.rs", function()
-        local positions =
-            plugin.discover_positions(vim.loop.cwd() .. "/tests/data/simple-package/src/main.rs"):to_list()
+        local file = data_path("simple-package", "src", "main.rs")
+        local positions = plugin.discover_positions(file):to_list()
 
         local expected_positions = {
             {
-                id = vim.loop.cwd() .. "/tests/data/simple-package/src/main.rs",
+                id = file,
                 name = "main.rs",
-                path = vim.loop.cwd() .. "/tests/data/simple-package/src/main.rs",
+                path = file,
                 range = { 0, 0, 27, 0 },
                 type = "file",
             },
@@ -33,7 +38,7 @@ describe("discover_positions", function()
                 {
                     id = "tests",
                     name = "tests",
-                    path = vim.loop.cwd() .. "/tests/data/simple-package/src/main.rs",
+                    path = file,
                     range = { 9, 0, 26, 1 },
                     type = "namespace",
                 },
@@ -41,7 +46,7 @@ describe("discover_positions", function()
                     {
                         id = "tests::basic_math",
                         name = "basic_math",
-                        path = vim.loop.cwd() .. "/tests/data/simple-package/src/main.rs",
+                        path = file,
                         range = { 11, 4, 13, 5 },
                         type = "test",
                     },
@@ -50,7 +55,7 @@ describe("discover_positions", function()
                     {
                         id = "tests::failed_math",
                         name = "failed_math",
-                        path = vim.loop.cwd() .. "/tests/data/simple-package/src/main.rs",
+                        path = file,
                         range = { 16, 4, 18, 5 },
                         type = "test",
                     },
@@ -59,7 +64,7 @@ describe("discover_positions", function()
                     {
                         id = "tests::nested",
                         name = "nested",
-                        path = vim.loop.cwd() .. "/tests/data/simple-package/src/main.rs",
+                        path = file,
                         range = { 20, 4, 25, 5 },
                         type = "namespace",
                     },
@@ -67,7 +72,7 @@ describe("discover_positions", function()
                         {
                             id = "tests::nested::nested_math",
                             name = "nested_math",
-                            path = vim.loop.cwd() .. "/tests/data/simple-package/src/main.rs",
+                            path = file,
                             range = { 22, 8, 24, 9 },
                             type = "test",
                         },
@@ -80,14 +85,14 @@ describe("discover_positions", function()
     end)
 
     async.it("discovers positions in unit tests in alt-bin.rs", function()
-        local positions =
-            plugin.discover_positions(vim.loop.cwd() .. "/tests/data/simple-package/src/bin/alt-bin.rs"):to_list()
+        local file = data_path("simple-package", "src", "bin", "alt-bin.rs")
+        local positions = plugin.discover_positions(file):to_list()
 
         local expected_positions = {
             {
-                id = vim.loop.cwd() .. "/tests/data/simple-package/src/bin/alt-bin.rs",
+                id = file,
                 name = "alt-bin.rs",
-                path = vim.loop.cwd() .. "/tests/data/simple-package/src/bin/alt-bin.rs",
+                path = file,
                 range = { 0, 0, 11, 0 },
                 type = "file",
             },
@@ -95,7 +100,7 @@ describe("discover_positions", function()
                 {
                     id = "tests",
                     name = "tests",
-                    path = vim.loop.cwd() .. "/tests/data/simple-package/src/bin/alt-bin.rs",
+                    path = file,
                     range = { 5, 0, 10, 1 },
                     type = "namespace",
                 },
@@ -103,7 +108,7 @@ describe("discover_positions", function()
                     {
                         id = "tests::test_alt_bin",
                         name = "test_alt_bin",
-                        path = vim.loop.cwd() .. "/tests/data/simple-package/src/bin/alt-bin.rs",
+                        path = file,
                         range = { 7, 4, 9, 5 },
                         type = "test",
                     },
@@ -115,13 +120,14 @@ describe("discover_positions", function()
     end)
 
     async.it("discovers positions in unit tests in lib.rs", function()
-        local positions = plugin.discover_positions(vim.loop.cwd() .. "/tests/data/simple-package/src/lib.rs"):to_list()
+        local file = data_path("simple-package", "src", "lib.rs")
+        local positions = plugin.discover_positions(file):to_list()
 
         local expected_positions = {
             {
-                id = vim.loop.cwd() .. "/tests/data/simple-package/src/lib.rs",
+                id = file,
                 name = "lib.rs",
-                path = vim.loop.cwd() .. "/tests/data/simple-package/src/lib.rs",
+                path = file,
                 range = { 0, 0, 13, 0 },
                 type = "file",
             },
@@ -129,7 +135,7 @@ describe("discover_positions", function()
                 {
                     id = "tests",
                     name = "tests",
-                    path = vim.loop.cwd() .. "/tests/data/simple-package/src/lib.rs",
+                    path = file,
                     range = { 1, 0, 12, 1 },
                     type = "namespace",
                 },
@@ -137,7 +143,7 @@ describe("discover_positions", function()
                     {
                         id = "tests::math",
                         name = "math",
-                        path = vim.loop.cwd() .. "/tests/data/simple-package/src/lib.rs",
+                        path = file,
                         range = { 3, 4, 5, 5 },
                         type = "test",
                     },
@@ -146,7 +152,7 @@ describe("discover_positions", function()
                     {
                         id = "tests::same_string",
                         name = "same_string",
-                        path = vim.loop.cwd() .. "/tests/data/simple-package/src/lib.rs",
+                        path = file,
                         range = { 9, 4, 11, 5 },
                         type = "test",
                     },
@@ -158,14 +164,14 @@ describe("discover_positions", function()
     end)
 
     async.it("discovers positions in unit tests in mod.rs", function()
-        local positions =
-            plugin.discover_positions(vim.loop.cwd() .. "/tests/data/simple-package/src/mymod/mod.rs"):to_list()
+        local file = data_path("simple-package", "src", "mymod", "mod.rs")
+        local positions = plugin.discover_positions(file):to_list()
 
         local expected_positions = {
             {
-                id = vim.loop.cwd() .. "/tests/data/simple-package/src/mymod/mod.rs",
+                id = file,
                 name = "mod.rs",
-                path = vim.loop.cwd() .. "/tests/data/simple-package/src/mymod/mod.rs",
+                path = file,
                 range = { 0, 0, 9, 0 },
                 type = "file",
             },
@@ -173,7 +179,7 @@ describe("discover_positions", function()
                 {
                     id = "mymod::tests",
                     name = "tests",
-                    path = vim.loop.cwd() .. "/tests/data/simple-package/src/mymod/mod.rs",
+                    path = file,
                     range = { 3, 0, 8, 1 },
                     type = "namespace",
                 },
@@ -181,7 +187,7 @@ describe("discover_positions", function()
                     {
                         id = "mymod::tests::math",
                         name = "math",
-                        path = vim.loop.cwd() .. "/tests/data/simple-package/src/mymod/mod.rs",
+                        path = file,
                         range = { 5, 4, 7, 5 },
                         type = "test",
                     },
@@ -193,14 +199,14 @@ describe("discover_positions", function()
     end)
 
     async.it("discovers positions in unit tests in a regular Rust file", function()
-        local positions =
-            plugin.discover_positions(vim.loop.cwd() .. "/tests/data/simple-package/src/mymod/foo.rs"):to_list()
+        local file = data_path("simple-package", "src", "mymod", "foo.rs")
+        local positions = plugin.discover_positions(file):to_list()
 
         local expected_positions = {
             {
-                id = vim.loop.cwd() .. "/tests/data/simple-package/src/mymod/foo.rs",
+                id = file,
                 name = "foo.rs",
-                path = vim.loop.cwd() .. "/tests/data/simple-package/src/mymod/foo.rs",
+                path = file,
                 range = { 0, 0, 7, 0 },
                 type = "file",
             },
@@ -208,7 +214,7 @@ describe("discover_positions", function()
                 {
                     id = "mymod::foo::tests",
                     name = "tests",
-                    path = vim.loop.cwd() .. "/tests/data/simple-package/src/mymod/foo.rs",
+                    path = file,
                     range = { 1, 0, 6, 1 },
                     type = "namespace",
                 },
@@ -216,7 +222,7 @@ describe("discover_positions", function()
                     {
                         id = "mymod::foo::tests::math",
                         name = "math",
-                        path = vim.loop.cwd() .. "/tests/data/simple-package/src/mymod/foo.rs",
+                        path = file,
                         range = { 3, 4, 5, 5 },
                         type = "test",
                     },
@@ -228,14 +234,14 @@ describe("discover_positions", function()
     end)
 
     async.it("discovers positions in integration tests", function()
-        local positions =
-            plugin.discover_positions(vim.loop.cwd() .. "/tests/data/simple-package/tests/test_it.rs"):to_list()
+        local file = data_path("simple-package", "tests", "test_it.rs")
+        local positions = plugin.discover_positions(file):to_list()
 
         local expected_positions = {
             {
-                id = vim.loop.cwd() .. "/tests/data/simple-package/tests/test_it.rs",
+                id = file,
                 name = "test_it.rs",
-                path = vim.loop.cwd() .. "/tests/data/simple-package/tests/test_it.rs",
+                path = file,
                 range = { 0, 0, 18, 0 },
                 type = "file",
             },
@@ -243,7 +249,7 @@ describe("discover_positions", function()
                 {
                     id = "top_level_math",
                     name = "top_level_math",
-                    path = vim.loop.cwd() .. "/tests/data/simple-package/tests/test_it.rs",
+                    path = file,
                     range = { 1, 0, 3, 1 },
                     type = "test",
                 },
@@ -252,7 +258,7 @@ describe("discover_positions", function()
                 {
                     id = "nested",
                     name = "nested",
-                    path = vim.loop.cwd() .. "/tests/data/simple-package/tests/test_it.rs",
+                    path = file,
                     range = { 5, 0, 17, 1 },
                     type = "namespace",
                 },
@@ -260,7 +266,7 @@ describe("discover_positions", function()
                     {
                         id = "nested::nested_math",
                         name = "nested_math",
-                        path = vim.loop.cwd() .. "/tests/data/simple-package/tests/test_it.rs",
+                        path = file,
                         range = { 7, 4, 9, 5 },
                         type = "test",
                     },
@@ -269,7 +275,7 @@ describe("discover_positions", function()
                     {
                         id = "nested::extra_nested",
                         name = "extra_nested",
-                        path = vim.loop.cwd() .. "/tests/data/simple-package/tests/test_it.rs",
+                        path = file,
                         range = { 11, 4, 16, 5 },
                         type = "namespace",
                     },
@@ -277,7 +283,7 @@ describe("discover_positions", function()
                         {
                             id = "nested::extra_nested::extra_nested_math",
                             name = "extra_nested_math",
-                            path = vim.loop.cwd() .. "/tests/data/simple-package/tests/test_it.rs",
+                            path = file,
                             range = { 13, 8, 15, 9 },
                             type = "test",
                         },
@@ -290,14 +296,14 @@ describe("discover_positions", function()
     end)
 
     async.it("discovers positions in main.rs in a subdirectory of integration tests", function()
-        local positions =
-            plugin.discover_positions(vim.loop.cwd() .. "/tests/data/simple-package/tests/testsuite/main.rs"):to_list()
+        local file = data_path("simple-package", "tests", "testsuite", "main.rs")
+        local positions = plugin.discover_positions(file):to_list()
 
         local expected_positions = {
             {
-                id = vim.loop.cwd() .. "/tests/data/simple-package/tests/testsuite/main.rs",
+                id = file,
                 name = "main.rs",
-                path = vim.loop.cwd() .. "/tests/data/simple-package/tests/testsuite/main.rs",
+                path = file,
                 range = { 0, 0, 6, 0 },
                 type = "file",
             },
@@ -305,7 +311,7 @@ describe("discover_positions", function()
                 {
                     id = "testsuite_top_level_math",
                     name = "testsuite_top_level_math",
-                    path = vim.loop.cwd() .. "/tests/data/simple-package/tests/testsuite/main.rs",
+                    path = file,
                     range = { 3, 0, 5, 1 },
                     type = "test",
                 },
@@ -316,14 +322,14 @@ describe("discover_positions", function()
     end)
 
     async.it("discovers positions in a test file in a subdirectory of integration tests", function()
-        local positions =
-            plugin.discover_positions(vim.loop.cwd() .. "/tests/data/simple-package/tests/testsuite/it.rs"):to_list()
+        local file = data_path("simple-package", "tests", "testsuite", "it.rs")
+        local positions = plugin.discover_positions(file):to_list()
 
         local expected_positions = {
             {
-                id = vim.loop.cwd() .. "/tests/data/simple-package/tests/testsuite/it.rs",
+                id = file,
                 name = "it.rs",
-                path = vim.loop.cwd() .. "/tests/data/simple-package/tests/testsuite/it.rs",
+                path = file,
                 range = { 0, 0, 4, 0 },
                 type = "file",
             },
@@ -331,7 +337,7 @@ describe("discover_positions", function()
                 {
                     id = "it::testsuite_it_math",
                     name = "testsuite_it_math",
-                    path = vim.loop.cwd() .. "/tests/data/simple-package/tests/testsuite/it.rs",
+                    path = file,
                     range = { 1, 0, 3, 1 },
                     type = "test",
                 },
@@ -342,15 +348,14 @@ describe("discover_positions", function()
     end)
 
     async.it("discovers positions when there are multiple macros present", function()
-        local positions = plugin
-            .discover_positions(vim.loop.cwd() .. "/tests/data/simple-package/src/mymod/multiple_macros.rs")
-            :to_list()
+        local file = data_path("simple-package", "src", "mymod", "multiple_macros.rs")
+        local positions = plugin.discover_positions(file):to_list()
 
         local expected_positions = {
             {
-                id = vim.loop.cwd() .. "/tests/data/simple-package/src/mymod/multiple_macros.rs",
+                id = file,
                 name = "multiple_macros.rs",
-                path = vim.loop.cwd() .. "/tests/data/simple-package/src/mymod/multiple_macros.rs",
+                path = file,
                 range = { 0, 0, 15, 0 },
                 type = "file",
             },
@@ -358,7 +363,7 @@ describe("discover_positions", function()
                 {
                     id = "mymod::multiple_macros::should_panic_last",
                     name = "should_panic_last",
-                    path = vim.loop.cwd() .. "/tests/data/simple-package/src/mymod/multiple_macros.rs",
+                    path = file,
                     range = { 2, 0, 4, 1 },
                     type = "test",
                 },
@@ -367,7 +372,7 @@ describe("discover_positions", function()
                 {
                     id = "mymod::multiple_macros::should_panic_first",
                     name = "should_panic_first",
-                    path = vim.loop.cwd() .. "/tests/data/simple-package/src/mymod/multiple_macros.rs",
+                    path = file,
                     range = { 8, 0, 10, 1 },
                     type = "test",
                 },
@@ -383,7 +388,7 @@ describe("build_spec", function()
         it("can run a single test", function()
             local tree = Tree:new({
                 type = "test",
-                path = vim.loop.cwd() .. "/tests/data/simple-package/src/mymod/foo.rs",
+                path = data_path("simple-package", "src", "mymod", "foo.rs"),
                 id = "mymod::foo::tests::math",
             }, {}, function(data)
                 return data
@@ -391,42 +396,42 @@ describe("build_spec", function()
 
             local spec = plugin.build_spec({ tree = tree })
             assert.equal(spec.context.test_filter, "-E " .. vim.fn.shellescape("test(/^mymod::foo::tests::math$/)"))
-            assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/simple-package")
+            assert.equal(spec.cwd, data_path("simple-package"))
         end)
 
         it("can run a test file", function()
             local tree = Tree:new({
                 type = "file",
-                path = vim.loop.cwd() .. "/tests/data/simple-package/src/mymod/foo.rs",
-                id = vim.loop.cwd() .. "/tests/data/simple-package/src/mymod/foo.rs",
+                path = data_path("simple-package", "src", "mymod", "foo.rs"),
+                id = data_path("simple-package", "src", "mymod", "foo.rs"),
             }, {}, function(data)
                 return data
             end, {})
 
             local spec = plugin.build_spec({ tree = tree })
             assert.equal(spec.context.test_filter, "-E " .. vim.fn.shellescape("test(/^mymod::foo::/)"))
-            assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/simple-package")
+            assert.equal(spec.cwd, data_path("simple-package"))
         end)
 
         it("can run tests in main.rs", function()
             local tree = Tree:new({
                 type = "file",
-                path = vim.loop.cwd() .. "/tests/data/simple-package/src/main.rs",
-                id = vim.loop.cwd() .. "/tests/data/simple-package/src/main.rs",
+                path = data_path("simple-package", "src", "main.rs"),
+                id = data_path("simple-package", "src", "main.rs"),
             }, {}, function(data)
                 return data
             end, {})
 
             local spec = plugin.build_spec({ tree = tree })
             assert.equal(spec.context.test_filter, "-E " .. vim.fn.shellescape("test(/^tests::/)"))
-            assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/simple-package")
+            assert.equal(spec.cwd, data_path("simple-package"))
         end)
 
         it("can run tests in alt-bin.rs", function()
             local tree = Tree:new({
                 type = "file",
-                path = vim.loop.cwd() .. "/tests/data/simple-package/src/bin/alt-bin.rs",
-                id = vim.loop.cwd() .. "/tests/data/simple-package/src/bin/alt-bin.rs",
+                path = data_path("simple-package", "src", "bin", "alt-bin.rs"),
+                id = data_path("simple-package", "src", "bin", "alt-bin.rs"),
             }, {}, function(data)
                 return data
             end, {})
@@ -434,55 +439,55 @@ describe("build_spec", function()
             local spec = plugin.build_spec({ tree = tree })
             assert.is.truthy(string.find(spec.command, "%-%-bin alt%-bin"))
             assert.equal(spec.context.test_filter, "-E " .. vim.fn.shellescape("test(/^tests::/)"))
-            assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/simple-package")
+            assert.equal(spec.cwd, data_path("simple-package"))
         end)
 
         it("can run tests in lib.rs", function()
             local tree = Tree:new({
                 type = "file",
-                path = vim.loop.cwd() .. "/tests/data/simple-package/src/lib.rs",
-                id = vim.loop.cwd() .. "/tests/data/simple-package/src/lib.rs",
+                path = data_path("simple-package", "src", "lib.rs"),
+                id = data_path("simple-package", "src", "lib.rs"),
             }, {}, function(data)
                 return data
             end, {})
 
             local spec = plugin.build_spec({ tree = tree })
             assert.equal(spec.context.test_filter, "-E " .. vim.fn.shellescape("test(/^tests::/)"))
-            assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/simple-package")
+            assert.equal(spec.cwd, data_path("simple-package"))
         end)
 
         it("can run tests in mod.rs", function()
             local tree = Tree:new({
                 type = "file",
-                path = vim.loop.cwd() .. "/tests/data/simple-package/src/mymod/mod.rs",
-                id = vim.loop.cwd() .. "/tests/data/simple-package/src/mymod/mod.rs",
+                path = data_path("simple-package", "src", "mymod", "mod.rs"),
+                id = data_path("simple-package", "src", "mymod", "mod.rs"),
             }, {}, function(data)
                 return data
             end, {})
 
             local spec = plugin.build_spec({ tree = tree })
             assert.equal(spec.context.test_filter, "-E " .. vim.fn.shellescape("test(/^mymod::/)"))
-            assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/simple-package")
+            assert.equal(spec.cwd, data_path("simple-package"))
         end)
 
         it("can run tests in other_mod/foo.rs", function()
             local tree = Tree:new({
                 type = "file",
-                path = vim.loop.cwd() .. "/tests/data/simple-package/src/other_mod/foo.rs",
-                id = vim.loop.cwd() .. "/tests/data/simple-package/src/other_mod/foo.rs",
+                path = data_path("simple-package", "src", "other_mod", "foo.rs"),
+                id = data_path("simple-package", "src", "other_mod", "foo.rs"),
             }, {}, function(data)
                 return data
             end, {})
 
             local spec = plugin.build_spec({ tree = tree })
             assert.equal(spec.context.test_filter, "-E " .. vim.fn.shellescape("test(/^other_mod::foo::/)"))
-            assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/simple-package")
+            assert.equal(spec.cwd, data_path("simple-package"))
         end)
 
         it("can run a single integration test", function()
             local tree = Tree:new({
                 type = "test",
-                path = vim.loop.cwd() .. "/tests/data/simple-package/tests/test_it.rs",
+                path = data_path("simple-package", "tests", "test_it.rs"),
                 id = "top_level_math",
             }, {}, function(data)
                 return data
@@ -490,29 +495,29 @@ describe("build_spec", function()
 
             local spec = plugin.build_spec({ tree = tree })
             assert.equal(spec.context.test_filter, "-E " .. vim.fn.shellescape("test(/^top_level_math$/)"))
-            assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/simple-package")
+            assert.equal(spec.cwd, data_path("simple-package"))
             assert.matches(".+ %-%-test test_it", spec.command)
         end)
 
         it("can run a file of integration tests", function()
             local tree = Tree:new({
                 type = "file",
-                path = vim.loop.cwd() .. "/tests/data/simple-package/tests/test_it.rs",
-                id = vim.loop.cwd() .. "/tests/data/simple-package/src/tests/test_it.rs",
+                path = data_path("simple-package", "tests", "test_it.rs"),
+                id = data_path("simple-package", "src", "tests", "test_it.rs"),
             }, {}, function(data)
                 return data
             end, {})
 
             local spec = plugin.build_spec({ tree = tree })
             assert.equal(spec.context.test_filter, nil)
-            assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/simple-package")
+            assert.equal(spec.cwd, data_path("simple-package"))
             assert.matches(".+ %-%-test test_it", spec.command)
         end)
 
         it("can run an integration test in main.rs in a subdirectory", function()
             local tree = Tree:new({
                 type = "test",
-                path = vim.loop.cwd() .. "/tests/data/simple-package/tests/testsuite/main.rs",
+                path = data_path("simple-package", "tests", "testsuite", "main.rs"),
                 id = "testsuite_top_level_math",
             }, {}, function(data)
                 return data
@@ -520,29 +525,29 @@ describe("build_spec", function()
 
             local spec = plugin.build_spec({ tree = tree })
             assert.equal(spec.context.test_filter, "-E " .. vim.fn.shellescape("test(/^testsuite_top_level_math$/)"))
-            assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/simple-package")
+            assert.equal(spec.cwd, data_path("simple-package"))
             assert.matches(".+ %-%-test testsuite ", spec.command)
         end)
 
         it("can run all integration tests in main.rs in a subdirectory", function()
             local tree = Tree:new({
                 type = "file",
-                path = vim.loop.cwd() .. "/tests/data/simple-package/tests/testsuite/main.rs",
-                id = vim.loop.cwd() .. "/tests/data/simple-package/src/tests/testsuite/main.rs",
+                path = data_path("simple-package", "tests", "testsuite", "main.rs"),
+                id = data_path("simple-package", "src", "tests", "testsuite", "main.rs"),
             }, {}, function(data)
                 return data
             end, {})
 
             local spec = plugin.build_spec({ tree = tree })
             assert.equal(spec.context.test_filter, nil)
-            assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/simple-package")
+            assert.equal(spec.cwd, data_path("simple-package"))
             assert.matches(".+ %-%-test testsuite$", spec.command)
         end)
 
         it("can run an integration test in another test file in a subdirectory", function()
             local tree = Tree:new({
                 type = "test",
-                path = vim.loop.cwd() .. "/tests/data/simple-package/tests/testsuite/it.rs",
+                path = data_path("simple-package", "tests", "testsuite", "it.rs"),
                 id = "it::testsuite_it_math",
             }, {}, function(data)
                 return data
@@ -550,14 +555,14 @@ describe("build_spec", function()
 
             local spec = plugin.build_spec({ tree = tree })
             assert.equal(spec.context.test_filter, "-E " .. vim.fn.shellescape("test(/^it::testsuite_it_math$/)"))
-            assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/simple-package")
+            assert.equal(spec.cwd, data_path("simple-package"))
             assert.matches(".+ %-%-test testsuite ", spec.command)
         end)
 
         it("can run all integration tests in another test file in a subdirectory", function()
             local tree = Tree:new({
                 type = "file",
-                path = vim.loop.cwd() .. "/tests/data/simple-package/tests/testsuite/it.rs",
+                path = data_path("simple-package", "tests", "testsuite", "it.rs"),
                 id = "it::",
             }, {}, function(data)
                 return data
@@ -565,7 +570,7 @@ describe("build_spec", function()
 
             local spec = plugin.build_spec({ tree = tree })
             assert.equal(spec.context.test_filter, "-E " .. vim.fn.shellescape("test(/^it::/)"))
-            assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/simple-package")
+            assert.equal(spec.cwd, data_path("simple-package"))
             assert.matches(".+ %-%-test testsuite ", spec.command)
         end)
 
@@ -579,7 +584,7 @@ describe("build_spec", function()
             })
             local tree = Tree:new({
                 type = "test",
-                path = vim.loop.cwd() .. "/tests/data/simple-package/tests/test_it.rs",
+                path = data_path("simple-package", "tests", "test_it.rs"),
                 id = "top_level_math",
             }, {}, function(data)
                 return data
@@ -597,7 +602,7 @@ describe("build_spec", function()
         it("can run a single integration test", function()
             local tree = Tree:new({
                 type = "test",
-                path = vim.loop.cwd() .. "/tests/data/workspace/with_integration_tests/tests/it.rs",
+                path = data_path("workspace", "with_integration_tests", "tests", "it.rs"),
                 id = "it_works",
             }, {}, function(data)
                 return data
@@ -608,22 +613,22 @@ describe("build_spec", function()
                 spec.context.test_filter,
                 "-E " .. vim.fn.shellescape("package(with_integration_tests) & test(/^it_works$/)")
             )
-            assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/workspace")
+            assert.equal(spec.cwd, data_path("workspace"))
             assert.matches(".+ %-%-test it", spec.command)
         end)
 
         it("can run a file of integration tests", function()
             local tree = Tree:new({
                 type = "file",
-                path = vim.loop.cwd() .. "/tests/data/workspace/with_integration_tests/tests/it.rs",
-                id = vim.loop.cwd() .. "/tests/data/workspace/with_integration_tests/tests/it.rs",
+                path = data_path("workspace", "with_integration_tests", "tests", "it.rs"),
+                id = data_path("workspace", "with_integration_tests", "tests", "it.rs"),
             }, {}, function(data)
                 return data
             end, {})
 
             local spec = plugin.build_spec({ tree = tree })
             assert.equal(spec.context.test_filter, "-E " .. vim.fn.shellescape("package(with_integration_tests)"))
-            assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/workspace")
+            assert.equal(spec.cwd, data_path("workspace"))
             assert.matches(".+ %-%-test it", spec.command)
         end)
 
@@ -631,7 +636,7 @@ describe("build_spec", function()
             it("can run a single test", function()
                 local tree = Tree:new({
                     type = "test",
-                    path = vim.loop.cwd() .. "/tests/data/workspace/with_unit_tests/src/main.rs",
+                    path = data_path("workspace", "with_unit_tests", "src", "main.rs"),
                     id = "test_it",
                 }, {}, function(data)
                     return data
@@ -642,14 +647,14 @@ describe("build_spec", function()
                     spec.context.test_filter,
                     "-E " .. vim.fn.shellescape("package(with_unit_tests) & test(/^test_it$/)")
                 )
-                assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/workspace")
+                assert.equal(spec.cwd, data_path("workspace"))
             end)
 
             it("can run a test file", function()
                 local tree = Tree:new({
                     type = "file",
-                    path = vim.loop.cwd() .. "/tests/data/workspace/with_unit_tests/src/main.rs",
-                    id = vim.loop.cwd() .. "/tests/data/workspace/with_unit_tests/src/main.rs",
+                    path = data_path("workspace", "with_unit_tests", "src", "main.rs"),
+                    id = data_path("workspace", "with_unit_tests", "src", "main.rs"),
                 }, {}, function(data)
                     return data
                 end, {})
@@ -659,7 +664,7 @@ describe("build_spec", function()
                     spec.context.test_filter,
                     "-E " .. vim.fn.shellescape("package(with_unit_tests) & test(/^tests::/)")
                 )
-                assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/workspace")
+                assert.equal(spec.cwd, data_path("workspace"))
             end)
         end)
 
@@ -667,7 +672,7 @@ describe("build_spec", function()
             it("can run a single test", function()
                 local tree = Tree:new({
                     type = "test",
-                    path = vim.loop.cwd() .. "/tests/data/workspace/with_other_folder_name/src/main.rs",
+                    path = data_path("workspace", "with_other_folder_name", "src", "main.rs"),
                     id = "test_it",
                 }, {}, function(data)
                     return data
@@ -678,14 +683,14 @@ describe("build_spec", function()
                     spec.context.test_filter,
                     "-E " .. vim.fn.shellescape("package(some_other_name) & test(/^test_it$/)")
                 )
-                assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/workspace")
+                assert.equal(spec.cwd, data_path("workspace"))
             end)
 
             it("can run a test file", function()
                 local tree = Tree:new({
                     type = "file",
-                    path = vim.loop.cwd() .. "/tests/data/workspace/with_other_folder_name/src/main.rs",
-                    id = vim.loop.cwd() .. "/tests/data/workspace/with_other_folder_name/src/main.rs",
+                    path = data_path("workspace", "with_other_folder_name", "src", "main.rs"),
+                    id = data_path("workspace", "with_other_folder_name", "src", "main.rs"),
                 }, {}, function(data)
                     return data
                 end, {})
@@ -695,7 +700,7 @@ describe("build_spec", function()
                     spec.context.test_filter,
                     "-E " .. vim.fn.shellescape("package(some_other_name) & test(/^tests::/)")
                 )
-                assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/workspace")
+                assert.equal(spec.cwd, data_path("workspace"))
             end)
         end)
     end)
@@ -705,7 +710,7 @@ describe("build_spec", function()
             async.it("can debug a single test", function()
                 local tree = Tree:new({
                     type = "test",
-                    path = vim.loop.cwd() .. "/tests/data/simple-package/src/mymod/foo.rs",
+                    path = data_path("simple-package", "src", "mymod", "foo.rs"),
                     id = "mymod::foo::tests::math",
                 }, {}, function(data)
                     return data
@@ -717,14 +722,14 @@ describe("build_spec", function()
                     "--exact",
                     "mymod::foo::tests::math",
                 })
-                assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/simple-package")
+                assert.equal(spec.cwd, data_path("simple-package"))
             end)
 
             async.it("can debug a test file", function()
                 local tree = Tree:new({
                     type = "file",
-                    path = vim.loop.cwd() .. "/tests/data/simple-package/src/mymod/foo.rs",
-                    id = vim.loop.cwd() .. "/tests/data/simple-package/src/mymod/foo.rs",
+                    path = data_path("simple-package", "src", "mymod", "foo.rs"),
+                    id = data_path("simple-package", "src", "mymod", "foo.rs"),
                 }, {}, function(data)
                     return data
                 end, {})
@@ -734,14 +739,14 @@ describe("build_spec", function()
                     "--nocapture",
                     "mymod::foo",
                 })
-                assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/simple-package")
+                assert.equal(spec.cwd, data_path("simple-package"))
             end)
 
             async.it("can debug tests in main.rs", function()
                 local tree = Tree:new({
                     type = "file",
-                    path = vim.loop.cwd() .. "/tests/data/simple-package/src/main.rs",
-                    id = vim.loop.cwd() .. "/tests/data/simple-package/src/main.rs",
+                    path = data_path("simple-package", "src", "main.rs"),
+                    id = data_path("simple-package", "src", "main.rs"),
                 }, {}, function(data)
                     return data
                 end, {})
@@ -751,14 +756,14 @@ describe("build_spec", function()
                     "--nocapture",
                     "tests",
                 })
-                assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/simple-package")
+                assert.equal(spec.cwd, data_path("simple-package"))
             end)
 
             async.it("can debug tests in alt-bin.rs", function()
                 local tree = Tree:new({
                     type = "file",
-                    path = vim.loop.cwd() .. "/tests/data/simple-package/src/bin/alt-bin.rs",
-                    id = vim.loop.cwd() .. "/tests/data/simple-package/src/bin/alt-bin.rs",
+                    path = data_path("simple-package", "src", "bin", "alt-bin.rs"),
+                    id = data_path("simple-package", "src", "bin", "alt-bin.rs"),
                 }, {}, function(data)
                     return data
                 end, {})
@@ -768,14 +773,14 @@ describe("build_spec", function()
                     "--nocapture",
                     "tests",
                 })
-                assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/simple-package")
+                assert.equal(spec.cwd, data_path("simple-package"))
             end)
 
             async.it("can debug tests in lib.rs", function()
                 local tree = Tree:new({
                     type = "file",
-                    path = vim.loop.cwd() .. "/tests/data/simple-package/src/lib.rs",
-                    id = vim.loop.cwd() .. "/tests/data/simple-package/src/lib.rs",
+                    path = data_path("simple-package", "src", "lib.rs"),
+                    id = data_path("simple-package", "src", "lib.rs"),
                 }, {}, function(data)
                     return data
                 end, {})
@@ -785,14 +790,14 @@ describe("build_spec", function()
                     "--nocapture",
                     "tests",
                 })
-                assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/simple-package")
+                assert.equal(spec.cwd, data_path("simple-package"))
             end)
 
             async.it("can debug tests in mod.rs", function()
                 local tree = Tree:new({
                     type = "file",
-                    path = vim.loop.cwd() .. "/tests/data/simple-package/src/mymod/mod.rs",
-                    id = vim.loop.cwd() .. "/tests/data/simple-package/src/mymod/mod.rs",
+                    path = data_path("simple-package", "src", "mymod", "mod.rs"),
+                    id = data_path("simple-package", "src", "mymod", "mod.rs"),
                 }, {}, function(data)
                     return data
                 end, {})
@@ -802,14 +807,14 @@ describe("build_spec", function()
                     "--nocapture",
                     "mymod",
                 })
-                assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/simple-package")
+                assert.equal(spec.cwd, data_path("simple-package"))
             end)
 
             async.it("can debug tests in other_mod/foo.rs", function()
                 local tree = Tree:new({
                     type = "file",
-                    path = vim.loop.cwd() .. "/tests/data/simple-package/src/other_mod/foo.rs",
-                    id = vim.loop.cwd() .. "/tests/data/simple-package/src/other_mod/foo.rs",
+                    path = data_path("simple-package", "src", "other_mod", "foo.rs"),
+                    id = data_path("simple-package", "src", "other_mod", "foo.rs"),
                 }, {}, function(data)
                     return data
                 end, {})
@@ -819,13 +824,13 @@ describe("build_spec", function()
                     "--nocapture",
                     "other_mod::foo",
                 })
-                assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/simple-package")
+                assert.equal(spec.cwd, data_path("simple-package"))
             end)
 
             async.it("can debug a single integration test", function()
                 local tree = Tree:new({
                     type = "test",
-                    path = vim.loop.cwd() .. "/tests/data/simple-package/tests/test_it.rs",
+                    path = data_path("simple-package", "tests", "test_it.rs"),
                     id = "top_level_math",
                 }, {}, function(data)
                     return data
@@ -837,14 +842,14 @@ describe("build_spec", function()
                     "--exact",
                     "top_level_math",
                 })
-                assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/simple-package")
+                assert.equal(spec.cwd, data_path("simple-package"))
             end)
 
             async.it("can debug a file of integration tests", function()
                 local tree = Tree:new({
                     type = "file",
-                    path = vim.loop.cwd() .. "/tests/data/simple-package/tests/test_it.rs",
-                    id = vim.loop.cwd() .. "/tests/data/simple-package/src/tests/test_it.rs",
+                    path = data_path("simple-package", "tests", "test_it.rs"),
+                    id = data_path("simple-package", "src", "tests", "test_it.rs"),
                 }, {}, function(data)
                     return data
                 end, {})
@@ -854,13 +859,13 @@ describe("build_spec", function()
                     "--nocapture",
                     "tests",
                 })
-                assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/simple-package")
+                assert.equal(spec.cwd, data_path("simple-package"))
             end)
 
             async.it("can debug an integration test in main.rs in a subdirectory", function()
                 local tree = Tree:new({
                     type = "test",
-                    path = vim.loop.cwd() .. "/tests/data/simple-package/tests/testsuite/main.rs",
+                    path = data_path("simple-package", "tests", "testsuite", "main.rs"),
                     id = "testsuite_top_level_math",
                 }, {}, function(data)
                     return data
@@ -872,14 +877,14 @@ describe("build_spec", function()
                     "--exact",
                     "testsuite_top_level_math",
                 })
-                assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/simple-package")
+                assert.equal(spec.cwd, data_path("simple-package"))
             end)
 
             async.it("can debug all integration tests in main.rs in a subdirectory", function()
                 local tree = Tree:new({
                     type = "file",
-                    path = vim.loop.cwd() .. "/tests/data/simple-package/tests/testsuite/main.rs",
-                    id = vim.loop.cwd() .. "/tests/data/simple-package/src/tests/testsuite/main.rs",
+                    path = data_path("simple-package", "tests", "testsuite", "main.rs"),
+                    id = data_path("simple-package", "src", "tests", "testsuite", "main.rs"),
                 }, {}, function(data)
                     return data
                 end, {})
@@ -889,13 +894,13 @@ describe("build_spec", function()
                     "--nocapture",
                     "tests",
                 })
-                assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/simple-package")
+                assert.equal(spec.cwd, data_path("simple-package"))
             end)
 
             async.it("can debug an integration test in another test file in a subdirectory", function()
                 local tree = Tree:new({
                     type = "test",
-                    path = vim.loop.cwd() .. "/tests/data/simple-package/tests/testsuite/it.rs",
+                    path = data_path("simple-package", "tests", "testsuite", "it.rs"),
                     id = "it::testsuite_it_math",
                 }, {}, function(data)
                     return data
@@ -907,13 +912,13 @@ describe("build_spec", function()
                     "--exact",
                     "it::testsuite_it_math",
                 })
-                assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/simple-package")
+                assert.equal(spec.cwd, data_path("simple-package"))
             end)
 
             async.it("can debug all integration tests in another test file in a subdirectory", function()
                 local tree = Tree:new({
                     type = "file",
-                    path = vim.loop.cwd() .. "/tests/data/simple-package/tests/testsuite/it.rs",
+                    path = data_path("simple-package", "tests", "testsuite", "it.rs"),
                     id = "it::",
                 }, {}, function(data)
                     return data
@@ -924,7 +929,7 @@ describe("build_spec", function()
                     "--nocapture",
                     "it",
                 })
-                assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/simple-package")
+                assert.equal(spec.cwd, data_path("simple-package"))
             end)
         end)
 
@@ -932,7 +937,7 @@ describe("build_spec", function()
             it("can debug a single test", function()
                 local tree = Tree:new({
                     type = "test",
-                    path = vim.loop.cwd() .. "/tests/data/workspace/with_unit_tests/src/main.rs",
+                    path = data_path("workspace", "with_unit_tests", "src", "main.rs"),
                     id = "test_it",
                 }, {}, function(data)
                     return data
@@ -944,14 +949,14 @@ describe("build_spec", function()
                     "--exact",
                     "test_it",
                 })
-                assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/workspace")
+                assert.equal(spec.cwd, data_path("workspace"))
             end)
 
             it("can debug a test file", function()
                 local tree = Tree:new({
                     type = "file",
-                    path = vim.loop.cwd() .. "/tests/data/workspace/with_unit_tests/src/main.rs",
-                    id = vim.loop.cwd() .. "/tests/data/workspace/with_unit_tests/src/main.rs",
+                    path = data_path("workspace", "with_unit_tests", "src", "main.rs"),
+                    id = data_path("workspace", "with_unit_tests", "src", "main.rs"),
                 }, {}, function(data)
                     return data
                 end, {})
@@ -961,13 +966,13 @@ describe("build_spec", function()
                     "--nocapture",
                     "tests",
                 })
-                assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/workspace")
+                assert.equal(spec.cwd, data_path("workspace"))
             end)
 
             it("can debug a single integration test", function()
                 local tree = Tree:new({
                     type = "test",
-                    path = vim.loop.cwd() .. "/tests/data/workspace/with_integration_tests/tests/it.rs",
+                    path = data_path("workspace", "with_integration_tests", "tests", "it.rs"),
                     id = "it_works",
                 }, {}, function(data)
                     return data
@@ -979,14 +984,14 @@ describe("build_spec", function()
                     "--exact",
                     "it_works",
                 })
-                assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/workspace")
+                assert.equal(spec.cwd, data_path("workspace"))
             end)
 
             it("can debug a file of integration tests", function()
                 local tree = Tree:new({
                     type = "file",
-                    path = vim.loop.cwd() .. "/tests/data/workspace/with_integration_tests/tests/it.rs",
-                    id = vim.loop.cwd() .. "/tests/data/workspace/with_integration_tests/tests/it.rs",
+                    path = data_path("workspace", "with_integration_tests", "tests", "it.rs"),
+                    id = data_path("workspace", "with_integration_tests", "tests", "it.rs"),
                 }, {}, function(data)
                     return data
                 end, {})
@@ -996,7 +1001,7 @@ describe("build_spec", function()
                     "--nocapture",
                     "tests",
                 })
-                assert.equal(spec.cwd, vim.loop.cwd() .. "/tests/data/workspace")
+                assert.equal(spec.cwd, data_path("workspace"))
             end)
         end)
     end)
@@ -1005,7 +1010,7 @@ end)
 describe("results", function()
     it("parses results with a single test suite in it", function()
         local adapter = require("neotest-rust")({})
-        local path = vim.loop.cwd() .. "/tests/data/simple-package/single_test_suite.xml"
+        local path = data_path("simple-package", "single_test_suite.xml")
         local spec = { context = { junit_path = path }, strategy = { stdio = nil } }
         local strategy_result = { code = 101, output = "/some/path" }
 
@@ -1032,7 +1037,7 @@ describe("results", function()
 
     it("parses results with no test suite in it", function()
         local adapter = require("neotest-rust")({})
-        local path = vim.loop.cwd() .. "/tests/data/simple-package/no_test_suite.xml"
+        local path = data_path("simple-package", "no_test_suite.xml")
         local spec = { context = { junit_path = path }, strategy = { stdio = nil } }
         local strategy_result = { code = 101, output = "/some/path" }
 
@@ -1045,7 +1050,7 @@ describe("results", function()
 
     it("parses results with empty system-out and system-err", function()
         local adapter = require("neotest-rust")({})
-        local path = vim.loop.cwd() .. "/tests/data/simple-package/test_failure_with_empty_stdout_stder.xml"
+        local path = data_path("simple-package", "test_failure_with_empty_stdout_stder.xml")
         local spec = { context = { junit_path = path }, strategy = { stdio = nil } }
         local strategy_result = { code = 101, output = "/some/path" }
 
@@ -1063,7 +1068,7 @@ describe("results", function()
 
     it("parses results with a multiple test suites in it", function()
         local adapter = require("neotest-rust")({})
-        local path = vim.loop.cwd() .. "/tests/data/simple-package/multiple_test_suites.xml"
+        local path = data_path("simple-package", "multiple_test_suites.xml")
         local spec = { context = { junit_path = path }, strategy = { stdio = nil } }
         local strategy_result = { code = 101, output = "/some/path" }
 
@@ -1093,9 +1098,9 @@ describe("results", function()
 
     it("parses raw results from result.output after debugging", function()
         local adapter = require("neotest-rust")({})
-        local path = vim.loop.cwd() .. "/tests/data/simple-package/does-not-exist.xml"
+        local path = data_path("simple-package", "does-not-exist.xml")
         local spec = { context = { junit_path = path, strategy = "dap" }, strategy = { stdio = nil } }
-        local strategy_result = { code = 101, output = vim.loop.cwd() .. "/tests/data/simple-package/1" }
+        local strategy_result = { code = 101, output = data_path("simple-package", "1") }
 
         local results = adapter.results(spec, strategy_result, nil)
 
@@ -1110,12 +1115,12 @@ describe("results", function()
 
     it("parses raw results from strategy.stdio after debugging with codelldb", function()
         local adapter = require("neotest-rust")({})
-        local path = vim.loop.cwd() .. "/tests/data/simple-package/does-not-exist.xml"
+        local path = data_path("simple-package", "does-not-exist.xml")
         local spec = {
             context = { junit_path = path, strategy = "dap" },
-            strategy = { stdio = { nil, vim.loop.cwd() .. "/tests/data/simple-package/3" } },
+            strategy = { stdio = { nil, data_path("simple-package", "3") } },
         }
-        local strategy_result = { code = 101, output = vim.loop.cwd() .. "/tests/data/simple-package/1" }
+        local strategy_result = { code = 101, output = data_path("simple-package", "1") }
 
         local results = adapter.results(spec, strategy_result, nil)
 
@@ -1145,7 +1150,7 @@ describe("results", function()
 
     it("returns the cargo-nextest output if there is no junit file", function()
         local adapter = require("neotest-rust")({})
-        local path = vim.loop.cwd() .. "/does-not-exist.xml"
+        local path = Path:new(vim.uv.cwd(), "does-not-exist.xml").filename
         local position_id = "some_test"
         local spec = { context = { junit_path = path, position_id = position_id }, strategy = { stdio = nil } }
         local strategy_result = { code = 101, output = "/some/path" }
@@ -1166,14 +1171,14 @@ end)
 describe("filter_dir", function()
     it("doesn't exclude the src directory", function()
         local adapter = require("neotest-rust")({})
-        local root = vim.loop.cwd() .. "/tests/data/simple-package"
+        local root = data_path("simple-package")
 
         assert.equals(adapter.filter_dir("src", "src", root), true)
     end)
 
     it("excludes the target directory", function()
         local adapter = require("neotest-rust")({})
-        local root = vim.loop.cwd() .. "/tests/data/simple-package"
+        local root = data_path("simple-package")
 
         assert.equals(adapter.filter_dir("target", "target", root), false)
     end)

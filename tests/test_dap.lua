@@ -2,12 +2,15 @@ local async = require("nio.tests")
 local strings = require("plenary.strings")
 local dap = require("neotest-rust.dap")
 
+-- Windows has .exe
+local truncate_count = vim.fn.has("win32") == 1 and 20 or 16
+
 describe("get_test_binary", function()
     -- Binaries are created for src/lib.rs, src/main.rs, tests/test_it.rs, and
     -- tests/testsuite/main.rs. We can only test that they match expected substrings
     -- and that the other modules resolve to their source binaries
     describe("for a simple-package", function()
-        local cwd = vim.loop.cwd()
+        local cwd = vim.fs.normalize(vim.uv.cwd() or ".")
         local root = cwd .. "/tests/data/simple-package"
 
         local lib_actual = dap.get_test_binary(root, root .. "/src/lib.rs")
@@ -19,7 +22,7 @@ describe("get_test_binary", function()
         async.it("returns the test binary for src/lib.rs", function()
             assert(lib_actual)
             local expected = root .. "/target/debug/deps/simple_package-"
-            local actual = strings.truncate(lib_actual, lib_actual:len() - 16, "-")
+            local actual = strings.truncate(lib_actual, lib_actual:len() - truncate_count, "-")
 
             assert.equal(expected, actual)
         end)
@@ -27,7 +30,7 @@ describe("get_test_binary", function()
         async.it("returns the test binary for src/main.rs", function()
             assert(main_actual)
             local expected = root .. "/target/debug/deps/simple_package-"
-            local actual = strings.truncate(main_actual, main_actual:len() - 16, "-")
+            local actual = strings.truncate(main_actual, main_actual:len() - truncate_count, "-")
 
             assert.equal(expected, actual)
         end)
@@ -35,7 +38,7 @@ describe("get_test_binary", function()
         async.it("returns the test binary for src/bin/alt-bin.rs", function()
             assert(alt_bin_actual)
             local expected = root .. "/target/debug/deps/alt_bin-"
-            local actual = strings.truncate(alt_bin_actual, alt_bin_actual:len() - 16, "-")
+            local actual = strings.truncate(alt_bin_actual, alt_bin_actual:len() - truncate_count, "-")
 
             assert.equal(expected, actual)
         end)
@@ -71,7 +74,7 @@ describe("get_test_binary", function()
         async.it("returns the test binary for tests/test_it.rs", function()
             assert(test_it_actual)
             local expected = root .. "/target/debug/deps/test_it-"
-            local actual = strings.truncate(test_it_actual, test_it_actual:len() - 16, "-")
+            local actual = strings.truncate(test_it_actual, test_it_actual:len() - truncate_count, "-")
 
             assert.equal(expected, actual)
         end)
@@ -86,14 +89,14 @@ describe("get_test_binary", function()
         async.it("returns the test binary for tests/testsuite/main.rs", function()
             assert(testsuite_actual)
             local expected = root .. "/target/debug/deps/testsuite-"
-            local actual = strings.truncate(testsuite_actual, testsuite_actual:len() - 16, "-")
+            local actual = strings.truncate(testsuite_actual, testsuite_actual:len() - truncate_count, "-")
 
             assert.equal(expected, actual)
         end)
     end)
 
     describe("for a workspace", function()
-        local cwd = vim.loop.cwd()
+        local cwd = vim.fs.normalize(vim.uv.cwd() or ".")
         local root = cwd .. "/tests/data/workspace"
 
         async.it("returns the test binary for with_unit_tests/src/main.rs", function()
@@ -101,7 +104,7 @@ describe("get_test_binary", function()
             assert(with_unit_actual)
 
             local expected = root .. "/target/debug/deps/with_unit_tests-"
-            local actual = strings.truncate(with_unit_actual, with_unit_actual:len() - 16, "-")
+            local actual = strings.truncate(with_unit_actual, with_unit_actual:len() - truncate_count, "-")
 
             assert.equal(expected, actual)
         end)
@@ -112,7 +115,8 @@ describe("get_test_binary", function()
             assert(with_integration_main_actual)
 
             local expected = root .. "/target/debug/deps/with_integration_tests-"
-            local actual = strings.truncate(with_integration_main_actual, with_integration_main_actual:len() - 16, "-")
+            local actual =
+                strings.truncate(with_integration_main_actual, with_integration_main_actual:len() - truncate_count, "-")
 
             assert.equal(expected, actual)
         end)
@@ -122,7 +126,8 @@ describe("get_test_binary", function()
             assert(with_integration_it_actual)
 
             local expected = root .. "/target/debug/deps/it-"
-            local actual = strings.truncate(with_integration_it_actual, with_integration_it_actual:len() - 16, "-")
+            local actual =
+                strings.truncate(with_integration_it_actual, with_integration_it_actual:len() - truncate_count, "-")
 
             assert.equal(expected, actual)
         end)
@@ -131,7 +136,8 @@ end)
 
 describe("translate_results", function()
     async.it("parses results with a single test suite in it", function()
-        local path = vim.loop.cwd() .. "/tests/data/simple-package/1"
+        local cwd = vim.fs.normalize(vim.uv.cwd() or ".")
+        local path = cwd .. "/tests/data/simple-package/1"
 
         local results = dap.translate_results(path)
 
@@ -143,7 +149,8 @@ describe("translate_results", function()
     end)
 
     async.it("translates raw results with multiple test suites in it", function()
-        local path = vim.loop.cwd() .. "/tests/data/simple-package/3"
+        local cwd = vim.fs.normalize(vim.uv.cwd() or ".")
+        local path = cwd .. "/tests/data/simple-package/3"
 
         local results = dap.translate_results(path)
 

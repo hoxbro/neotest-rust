@@ -16,6 +16,7 @@ repos:
     rev: 28e1d7b5db3f2c6c53580963c79c5e6a5b374ca0 # frozen: v2.4.0
     hooks:
       - id: stylua-github
+        name: stylua
   - repo: https://github.com/hoxbro/prettier-pre-commit
     rev: 86ff8f664c20f581d71c90a6ea0073c1bcafe1e5 # frozen: v3.8.1
     hooks:

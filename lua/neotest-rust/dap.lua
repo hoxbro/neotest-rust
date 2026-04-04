@@ -36,7 +36,7 @@ local function get_src_paths(root)
         if string.find(line, src_filter) and string.find(line, exe_filter) then
             local src_path = string.match(line, src_filter)
             local executable = string.match(line, exe_filter)
-            src_paths[src_path] = executable
+            src_paths[vim.fs.normalize(src_path)] = vim.fs.normalize(executable)
         end
         line = handle:read("l")
     end
@@ -96,11 +96,11 @@ local function construct_mod_path(src_path, mod_name)
     local child_mod = abs_path .. parent_mod .. sep .. mod_name .. ".rs"
 
     if util.file_exists(mod_file) then
-        return mod_file
+        return vim.fs.normalize(mod_file)
     elseif util.file_exists(mod_dir) then
-        return mod_dir
+        return vim.fs.normalize(mod_dir)
     elseif util.file_exists(child_mod) then
-        return child_mod
+        return vim.fs.normalize(child_mod)
     end
 
     return nil
@@ -108,6 +108,7 @@ end
 
 -- Recursive search for 'path' amongst all modules declared in 'src_path'
 local function search_modules(src_path, path)
+    path = vim.fs.normalize(path)
     local mods = get_mods(src_path)
 
     for _, mod in ipairs(mods) do
@@ -126,6 +127,7 @@ end
 -- See: https://github.com/rust-lang/cargo/issues/1924#issuecomment-289764090
 -- Identify the binary containing the tests defined in 'path'
 M.get_test_binary = function(root, path)
+    path = vim.fs.normalize(path)
     local src_paths = get_src_paths(root)
 
     -- If 'path' is the source of the binary we are done

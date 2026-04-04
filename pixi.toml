@@ -4,9 +4,9 @@ channels = ["conda-forge"]
 platforms = ["linux-64", "osx-arm64", "win-64"]
 
 [tasks]
-install = 'nvim -l tests/busted.lua --version'
-update = 'nvim -l tests/busted.lua --update'
-test = 'nvim -l tests/busted.lua tests/'
+install = 'nvim -l tests/init.lua --install'
+update = 'nvim -l tests/init.lua --update'
+test = 'nvim -l tests/init.lua tests/'
 update-all = { depends-on = [
     { task = "update", environment = "nvim-010" },
     { task = "update", environment = "nvim-011" },
@@ -15,6 +15,7 @@ update-all = { depends-on = [
 
 [dependencies]
 cargo-nextest = "*"
+nvim = "*"
 rust = "*"
 tree-sitter-cli = "*"
 
@@ -29,17 +30,8 @@ platforms = ["linux-64", "osx-arm64"]
 [feature.nvim-010.dependencies]
 nvim = "0.10.*"
 
-[feature.nvim-010.activation.env]
-LAZY_STDPATH = ".lazy/nvim-010"
-
 [feature.nvim-011.dependencies]
 nvim = "0.11.*"
 
-[feature.nvim-011.activation.env]
-LAZY_STDPATH = ".lazy/nvim-011"
-
 [feature.nvim-012.dependencies]
 nvim = "0.12.*"
-
-[feature.nvim-012.activation.env]
-LAZY_STDPATH = ".lazy/nvim-012"
